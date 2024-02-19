@@ -87,9 +87,6 @@
   <ItemGroup>
     <WCFMetadata Include="Connected Services\" />
   </ItemGroup>
-  <ItemGroup>
-    <None Include="Readme.md" />
-  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PostBuildEvent>COPY "$(TargetPath)" "D:\SteamLibrary\steamapps\common\Car Mechanic Simulator 2021\Mods"</PostBuildEvent>
