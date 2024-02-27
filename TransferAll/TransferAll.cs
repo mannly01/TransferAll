@@ -1,11 +1,9 @@
 ﻿using CMS.UI;
 using CMS.UI.Windows;
+using Il2CppSystem.Collections.Generic;
+using Il2CppSystem.IO;
 using MelonLoader;
-using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Reflection;
 using UnityEngine;
 
 namespace TransferAll
@@ -19,7 +17,7 @@ namespace TransferAll
         public const string Description = "Mod to automatically transfer all parts from your Inventory to the Warehouse. Also, works in the Barn and Junkyard; including automatically moving all junk to the shopping cart.";
         public const string Author = "mannly82";
         public const string Company = "The Mann Design";
-        public const string Version = "1.0.0";
+        public const string Version = "1.0.1";
         public const string DownloadLink = "https://www.nexusmods.com/carmechanicsimulator2021/mods/174";
         public const string MelonGameCompany = "Red Dot Games";
         public const string MelonGameName = "Car Mechanic Simulator 2021";
@@ -38,12 +36,12 @@ namespace TransferAll
         /// <summary>
         /// User option for the key to transfer the Inventory/Warehouse/Junk items.
         /// </summary>
-        public KeyCode TransferAllItemsAndGroupsLeftControlPlus => _transferAllBindKey.Value;
+        public KeyCode TransferAllItemsAndGroups => _transferAllBindKey.Value;
         private readonly MelonPreferences_Entry<KeyCode> _transferAllBindKey;
         /// <summary>
         /// User option for the key to transfer all the junk from the Barn or Junkyard.
         /// </summary>
-        public KeyCode TransferEntireJunkyardOrBarnLeftAltPlus => _transferEntireBindKey.Value;
+        public KeyCode TransferEntireJunkyardOrBarn => _transferEntireBindKey.Value;
         private readonly MelonPreferences_Entry<KeyCode> _transferEntireBindKey;
         /// <summary>
         /// User option for the minimum number of items to show a warning message before transfer.
@@ -58,12 +56,16 @@ namespace TransferAll
         {
             _settings = MelonPreferences.CreateCategory(SettingsCatName);
             _settings.SetFilePath($"Mods/TransferAll.cfg");
-            _transferAllBindKey = _settings.CreateEntry(nameof(TransferAllItemsAndGroupsLeftControlPlus), KeyCode.Space, 
-                description: "Press Left Control + This Key to transfer all current items and groups.");
-            _transferEntireBindKey = _settings.CreateEntry(nameof(TransferEntireJunkyardOrBarnLeftAltPlus), KeyCode.Space,
-                description: "ONLY WORKS AT BARN AND JUNKYARD." + Environment.NewLine + "Press Left Alt + This Key to transfer all items and groups from ALL junk stashes.");
+            _transferAllBindKey = _settings.CreateEntry(nameof(TransferAllItemsAndGroups), KeyCode.P, 
+                description: "Press This Key to transfer all current items and groups.");
+            _transferEntireBindKey = _settings.CreateEntry(nameof(TransferEntireJunkyardOrBarn), KeyCode.L,
+                description: "ONLY WORKS AT BARN AND JUNKYARD." + Il2CppSystem.Environment.NewLine + "Press This Key to transfer all items and groups from ALL junk stashes.");
             _minNumOfItemsWarning = _settings.CreateEntry(nameof(MinNumOfItemsWarning), 500,
                 description: "This will display a warning if the items/groups are above this number (to prevent large moves by accident).");
+
+            // Remove the old configuration if it's still there.
+            _settings.DeleteEntry("TransferAllItemsAndGroupsLeftControlPlus");
+            _settings.DeleteEntry("TransferEntireJunkyardOrBarnLeftAltPlus");
         }
     }
 
@@ -89,7 +91,7 @@ namespace TransferAll
         /// this causes some serious performance issues during bulk moves,
         /// so these references allow these settings to be disabled temporarily.
         /// </summary>
-        private FieldInfo _qolSettings = null;
+        private System.Reflection.FieldInfo _qolSettings = null;
         private bool _qolGroupAddedPopup = false;
         private bool _qolAllPartsPopup = false;
 
@@ -97,12 +99,12 @@ namespace TransferAll
         /// Global reference used to temporarily hold the individual junk stashes in the Barn and Junkyard.
         /// This allows the individual stashes to be "undone" and transferred back.
         /// </summary>
-        private Dictionary<IntPtr, List<Item>> _tempItems = new Dictionary<IntPtr, List<Item>>();
+        private Dictionary<System.IntPtr, List<Item>> _tempItems = new Dictionary<System.IntPtr, List<Item>>();
         /// <summary>
         /// Global reference used to temporarily hold the individual junk stashes in the Barn and Junkyard.
         /// This allows the individual stashes to be "undone" and transferred back.
         /// </summary>
-        private Dictionary<IntPtr, List<GroupItem>> _tempGroups = new Dictionary<IntPtr, List<GroupItem>>();
+        private Dictionary<System.IntPtr, List<GroupItem>> _tempGroups = new Dictionary<System.IntPtr, List<GroupItem>>();
 
         public override void OnInitializeMelon()
         {
@@ -196,9 +198,8 @@ namespace TransferAll
                 }
             }
 
-            // Check if the user pressed Left Control and the Key in Settings.
-            if (Input.GetKey(KeyCode.LeftControl) &&
-                Input.GetKeyDown(_configFile.TransferAllItemsAndGroupsLeftControlPlus))
+            // Check if the user pressed the Key in Settings.
+            if (Input.GetKeyDown(_configFile.TransferAllItemsAndGroups))
             {
                 // Only work on these scenes.
                 if (_currentScene.Equals("garage") ||
@@ -208,6 +209,7 @@ namespace TransferAll
                     // These are debug/test methods.
                     //ShowSceneName();
                     //ShowWindowName();
+                    //ShowCurrentCategory();
 
                     // Disable QolMod settings temporarily.
                     if (_qolGroupAddedPopup || _qolAllPartsPopup)
@@ -248,9 +250,8 @@ namespace TransferAll
                     }
                 }
             }
-            // Check if the user pressed Left Alt and the Key in Settings.
-            if (Input.GetKey(KeyCode.LeftAlt) &&
-                Input.GetKeyDown(_configFile.TransferEntireJunkyardOrBarnLeftAltPlus))
+            // Check if the user pressed the Key in Settings.
+            if (Input.GetKeyDown(_configFile.TransferEntireJunkyardOrBarn))
             {
                 // Check that the user is in the Barn or Junkyard.
                 if (_currentScene.Equals("barn") ||
@@ -295,6 +296,38 @@ namespace TransferAll
                 {
                     UIManager.Get().ShowPopup(BuildInfo.Name, $"Window: {windowManager.GetLastOpenedWindow().name}", PopupType.Normal);
                 }
+            }
+        }
+        /// <summary>
+        /// Debug method to show the current selected category.
+        /// </summary>
+        private void ShowCurrentCategory()
+        {
+            string categoryName = string.Empty;
+            var windowManager = WindowManager.Instance;
+            if (windowManager != null)
+            {
+                if (windowManager.activeWindows.count > 0)
+                {
+                    if (windowManager.IsWindowActive(WindowID.Warehouse))
+                    {
+                        var warehouseWindow = windowManager.GetWindowByID<WarehouseWindow>(WindowID.Warehouse);
+                        if (warehouseWindow.currentTab == 0)
+                        {
+                            var inventoryTab = warehouseWindow.warehouseInventoryTab;
+                            categoryName = inventoryTab.currentCategory.ToString();
+                        }
+                        else
+                        {
+                            var warehouseTab = warehouseWindow.warehouseTab;
+                            categoryName = warehouseTab.currentCategory.ToString();
+                        }
+                    }
+                }
+            }
+            if (!string.IsNullOrWhiteSpace(categoryName))
+            {
+                UIManager.Get().ShowPopup(BuildInfo.Name, $"Selected Category: {categoryName}", PopupType.Normal);
             }
         }
         /// <summary>
@@ -500,7 +533,7 @@ namespace TransferAll
                             if (inventory.GetAllItemsAndGroups().Count >= _configFile.MinNumOfItemsWarning)
                             {
                                 // Ask the user to confirm the move because there are a lot of items/groups.
-                                Action<bool> confirmMove = new Action<bool>(response =>
+                                System.Action<bool> confirmMove = new System.Action<bool>(response =>
                                 {
                                     if (response)
                                     {
@@ -542,7 +575,7 @@ namespace TransferAll
                             if (warehouse.GetAllItemsAndGroups().Count >= _configFile.MinNumOfItemsWarning)
                             {
                                 // Ask the user to confirm the move because there are a lot of items/groups.
-                                Action<bool> confirmMove = new Action<bool>(response =>
+                                System.Action<bool> confirmMove = new System.Action<bool>(response =>
                                 {
                                     (var tempItems, var tempGroups) = MoveWarehouseItems(inventory, warehouse);
                                     // Show the user the number of items and groups that were moved.
