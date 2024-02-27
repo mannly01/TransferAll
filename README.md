@@ -3,12 +3,12 @@ Mod to automatically transfer all parts from your Inventory to the Warehouse.
 Also, works in the Barn and Junkyard; including automatically moving all junk to the shopping cart.
 
 ## REQUIREMENTS
-* MelonLoader 0.5.7
+* [MelonLoader 0.5.7](https://github.com/LavaGang/MelonLoader/releases/tag/v0.5.7)
 
 ## FEATURES
-* This mod allows the user to move all items in their Inventory to the selected Warehouse with one press of a key (technically two keys).
-* When viewing a Junk stash in the Barn or Junkyard, the same (two) keys will move all the Junk to the Shopping Cart/Summary screen.
-* The user can also press (two different) keys and move all the Junk stashes from the Barn or Junkyard to the Shopping Cart/Summary screen.
+* This mod allows the user to move all items in their Inventory to the selected Warehouse with one press of a key (P).
+* When viewing a Junk stash in the Barn or Junkyard, the same key (P) will move all the Junk to the Shopping Cart/Summary screen.
+* The user can also press a different key (L) and move all the Junk stashes from the Barn or Junkyard to the Shopping Cart/Summary screen.
 * You still have to pay for the items at the Barn or Junkyard.
 
 ## DEFAULT KEYS
@@ -19,10 +19,10 @@ Also, works in the Barn and Junkyard; including automatically moving all junk to
 * TransferAllItemsAndGroups: P
 * TransferEntireJunkyardOrBarn: L
 * MinNumOfItemsWarning: 500
-* [Keycode Values](https://docs.unity3d.com/ScriptReference/KeyCode.html)
+- [Keycode Values](https://docs.unity3d.com/ScriptReference/KeyCode.html)
 
 ## INSTALLATION (Same as all other MelonLoader mods)
-* Install [MelonLoader](https://github.com/LavaGang/MelonLoader/releases/tag/v0.5.7) 0.5.7 (MelonLoader.Installer.exe recommended)
+* Install [MelonLoader 0.5.7](https://github.com/LavaGang/MelonLoader/releases/tag/v0.5.7) (MelonLoader.Installer.exe recommended)
 * Download .zip from Files page
 * Unzip the TransferAll.dll file to Car Mechanic Simulator 2021\Mods folder
 - Default Folder: \SteamLibrary\steamapps\common\Car Mechanic Simulator 2021\Mods\
