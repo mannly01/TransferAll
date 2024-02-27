@@ -1,8 +1,9 @@
 ﻿using CMS.UI;
 using CMS.UI.Windows;
-using Il2CppSystem.Collections.Generic;
 using Il2CppSystem.IO;
 using MelonLoader;
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
@@ -99,12 +100,12 @@ namespace TransferAll
         /// Global reference used to temporarily hold the individual junk stashes in the Barn and Junkyard.
         /// This allows the individual stashes to be "undone" and transferred back.
         /// </summary>
-        private Dictionary<System.IntPtr, List<Item>> _tempItems = new Dictionary<System.IntPtr, List<Item>>();
+        private Dictionary<IntPtr, List<Item>> _tempItems = new Dictionary<IntPtr, List<Item>>();
         /// <summary>
         /// Global reference used to temporarily hold the individual junk stashes in the Barn and Junkyard.
         /// This allows the individual stashes to be "undone" and transferred back.
         /// </summary>
-        private Dictionary<System.IntPtr, List<GroupItem>> _tempGroups = new Dictionary<System.IntPtr, List<GroupItem>>();
+        private Dictionary<IntPtr, List<GroupItem>> _tempGroups = new Dictionary<IntPtr, List<GroupItem>>();
 
         public override void OnInitializeMelon()
         {
