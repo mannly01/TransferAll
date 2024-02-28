@@ -418,57 +418,6 @@ namespace TransferAll
         /// <param name="inventory">The user's Inventory.</param>
         /// <param name="warehouse">The Garage Warehouse.</param>
         /// <returns>(ItemCount, GroupCount) Tuple with the number of items/groups that were moved.</returns>
-        //private (int items, int groupItems) MoveInventoryItems(Inventory inventory, Warehouse warehouse)
-        //{
-        //    // Disable QoLmod settings temporarily.
-        //    ToggleQoLSettings();
-
-        //    // Get the number of items in the user's Inventory.
-        //    int invItemCount = inventory.items.Count;
-        //    // Use the standard For loop instead of ForEach
-        //    // so the list isn't edited during the operation.
-        //    for (int i = 0; i < invItemCount; i++)
-        //    {
-        //        // Always get a reference to the first item in the list.
-        //        var invItem = inventory.items[0];
-        //        // Add the item to the current Warehouse.
-        //        warehouse.Add(invItem);
-        //        // Remove the item from the user's Inventory.
-        //        inventory.items.RemoveAt(0);
-        //    }
-        //    // The user's Item Inventory should now be empty.
-        //    // If not, show the user a message.
-        //    if (inventory.items.Count > 0)
-        //    {
-        //        UIManager.Get().ShowPopup(BuildInfo.Name, "Failed to move items from Inventory", PopupType.Normal);
-        //    }
-
-        //    // Get the number of groups in the user's Inventory.
-        //    int invGroupCount = inventory.groups.Count;
-        //    // Use the standard For loop instead of ForEach,
-        //    // so the list isn't edited during the operation.
-        //    for (int i = 0; i < invGroupCount; i++)
-        //    {
-        //        // Always get a reference to the first group in the list.
-        //        var invGroupItem = inventory.groups[0];
-        //        // Add the group to the current Warehouse.
-        //        warehouse.Add(invGroupItem);
-        //        // Remove the group from the user's Inventory.
-        //        inventory.groups.RemoveAt(0);
-        //    }
-        //    // The user's Group Inventory should now be empty.
-        //    // If not, show the user a message.
-        //    if (inventory.groups.Count > 0)
-        //    {
-        //        UIManager.Get().ShowPopup(BuildInfo.Name, "Failed to move groups from Inventory", PopupType.Normal);
-        //    }
-
-        //    // Reset the QoLmod settings.
-        //    ToggleQoLSettings(reset: true);
-
-        //    // Return the number of Items and Groups that were moved.
-        //    return (invItemCount, invGroupCount);
-        //}
         private (int items, int groupItems) MoveInventoryItems(
             Il2CppSystem.Collections.Generic.List<BaseItem> invItems, 
             Inventory inventory, Warehouse warehouse)
@@ -532,63 +481,6 @@ namespace TransferAll
         /// <param name="inventory">The user's Inventory.</param>
         /// <param name="warehouse">The Garage Warehouse.</param>
         /// <returns>(ItemCount, GroupCount) Tuple with the number of items/groups that were moved.</returns>
-        //private (int items, int groupItems) MoveWarehouseItems(Inventory inventory, Warehouse warehouse)
-        //{
-        //    // Disable QoLmod settings temporarily.
-        //    ToggleQoLSettings();
-
-        //    // There is no easy way to get individual item and group lists,
-        //    // so get all the items and then separate them later.
-        //    var warehouseItems = warehouse.GetAllItemsAndGroups();
-        //    // Get the nummber of total items in the Warehouse.
-        //    int wareCount = warehouseItems.Count;
-        //    // Setup temporary counts to return at the end.
-        //    int wareItemCount = 0;
-        //    int wareGroupCount = 0;
-        //    // Use the standard For loop instead of ForEach,
-        //    // so the list isn't edited during the operation.
-        //    for (int i = 0; i < wareCount; i++)
-        //    {
-        //        // Always get a reference to the first BaseItem in the list.
-        //        var baseItem = warehouseItems[0];
-        //        // Try to cast the BaseItem to an Item.
-        //        if (baseItem.TryCast<Item>() != null)
-        //        {
-        //            // The BaseItem is an Item, so add it to the user's Inventory.
-        //            inventory.Add(baseItem.TryCast<Item>());
-        //            // Delete the Item from the Warehouse.
-        //            warehouse.Delete(baseItem.TryCast<Item>());
-        //            // Remove the BaseItem from the temporary list.
-        //            warehouseItems.RemoveAt(0);
-        //            // Increment the temporary count of items.
-        //            wareItemCount++;
-        //        }
-        //        // Try to cast the BaseItem to a GroupItem.
-        //        if (baseItem.TryCast<GroupItem>() != null)
-        //        {
-        //            // The BaseItem is a GroupItem, so add it to the user's Inventory.
-        //            inventory.AddGroup(baseItem.TryCast<GroupItem>());
-        //            // Delete the GroupItem from the Warehouse.
-        //            warehouse.Delete(baseItem.TryCast<GroupItem>());
-        //            // Remove the BaseItem from the temporary list.
-        //            warehouseItems.RemoveAt(0);
-        //            // Increment the temporary count of groups.
-        //            wareGroupCount++;
-        //        }
-        //    }
-        //    // The Warehouse should now be empty.
-        //    // If not, show the user a message.
-        //    if (warehouse.GetAllItemsAndGroups().Count > 0)
-        //    {
-        //        UIManager.Get().ShowPopup(BuildInfo.Name, "Failed to move items from Warehouse", PopupType.Normal);
-        //    }
-
-        //    // Reset the QoLmod settings.
-        //    ToggleQoLSettings(reset: true);
-
-        //    // Return the number of Items and Groups that were moved.
-        //    return (wareItemCount, wareGroupCount);
-        //}
         private (int items, int groupItems) MoveWarehouseItems(
             Il2CppSystem.Collections.Generic.List<BaseItem> warehouseItems, 
             Inventory inventory, Warehouse warehouse)
