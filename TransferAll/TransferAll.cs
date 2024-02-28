@@ -1,10 +1,12 @@
 ﻿using CMS.UI;
+using CMS.UI.Logic;
 using CMS.UI.Windows;
-using Il2CppSystem.IO;
 using MelonLoader;
 using System;
+using System.IO;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using UnityEngine;
 
 namespace TransferAll
@@ -18,7 +20,7 @@ namespace TransferAll
         public const string Description = "Mod to automatically transfer all parts from your Inventory to the Warehouse. Also, works in the Barn and Junkyard; including automatically moving all junk to the shopping cart.";
         public const string Author = "mannly82";
         public const string Company = "The Mann Design";
-        public const string Version = "1.0.1";
+        public const string Version = "1.1.0";
         public const string DownloadLink = "https://www.nexusmods.com/carmechanicsimulator2021/mods/174";
         public const string MelonGameCompany = "Red Dot Games";
         public const string MelonGameName = "Car Mechanic Simulator 2021";
@@ -35,20 +37,25 @@ namespace TransferAll
         private const string SettingsCatName = "Settings";
         private readonly MelonPreferences_Category _settings;
         /// <summary>
-        /// User option for the key to transfer the Inventory/Warehouse/Junk items.
+        /// User setting for the key to transfer the Inventory/Warehouse/Junk items.
         /// </summary>
         public KeyCode TransferAllItemsAndGroups => _transferAllBindKey.Value;
         private readonly MelonPreferences_Entry<KeyCode> _transferAllBindKey;
         /// <summary>
-        /// User option for the key to transfer all the junk from the Barn or Junkyard.
+        /// User setting for the key to transfer all the junk from the Barn or Junkyard.
         /// </summary>
         public KeyCode TransferEntireJunkyardOrBarn => _transferEntireBindKey.Value;
         private readonly MelonPreferences_Entry<KeyCode> _transferEntireBindKey;
         /// <summary>
-        /// User option for the minimum number of items to show a warning message before transfer.
+        /// User setting for the minimum number of items to show a warning message before transfer.
         /// </summary>
         public int MinNumOfItemsWarning => _minNumOfItemsWarning.Value;
         private readonly MelonPreferences_Entry<int> _minNumOfItemsWarning;
+        /// <summary>
+        /// User setting to select whether the TransferAll key uses the current category or not.
+        /// </summary>
+        public bool TransferByCategory => _transferByCategory.Value;
+        private readonly MelonPreferences_Entry<bool> _transferByCategory;
 
         /// <summary>
         /// Implementation of Settings properties.
@@ -63,6 +70,8 @@ namespace TransferAll
                 description: "ONLY WORKS AT BARN AND JUNKYARD." + Il2CppSystem.Environment.NewLine + "Press This Key to transfer all items and groups from ALL junk stashes.");
             _minNumOfItemsWarning = _settings.CreateEntry(nameof(MinNumOfItemsWarning), 500,
                 description: "This will display a warning if the items/groups are above this number (to prevent large moves by accident).");
+            _transferByCategory = _settings.CreateEntry(nameof(TransferByCategory), false,
+                description: "Set this to true and the TransferAllItemsAndGroups key will only move items in the selected category (engine, suspension, etc.).");
 
             // Remove the old configuration if it's still there.
             _settings.DeleteEntry("TransferAllItemsAndGroupsLeftControlPlus");
@@ -85,14 +94,18 @@ namespace TransferAll
         /// Global reference to verify if a tutorial is visible.
         /// </summary>
         private bool _myTutorialEnabled = false;
+        /// <summary>
+        /// Global reference to verify if the Warehouse Expansion is unlocked.
+        /// </summary>
+        private bool? _warehouseUnlocked = null;
 
         private string _qolPath = $"{Directory.GetCurrentDirectory()}\\Mods\\QoLmod.dll";
         /// <summary>
-        /// QoLMod shows a popup for every part inside a group as its moved and
+        /// QoLmod shows a popup for every part inside a group as its moved and
         /// this causes some serious performance issues during bulk moves,
         /// so these references allow these settings to be disabled temporarily.
         /// </summary>
-        private System.Reflection.FieldInfo _qolSettings = null;
+        private FieldInfo _qolSettings = null;
         private bool _qolGroupAddedPopup = false;
         private bool _qolAllPartsPopup = false;
 
@@ -117,7 +130,7 @@ namespace TransferAll
         public override void OnLateInitializeMelon()
         {
             // Specifically for the QoLmod effect explained above.
-            // Check that the QoLmod.dll is even installed.
+            // Check that the QoLmod.dll is installed.
             if (File.Exists(_qolPath))
             {
                 // Use reflection to load the dll.
@@ -178,53 +191,45 @@ namespace TransferAll
                 _currentScene.Equals("barn") ||
                 _currentScene.Equals("junkyard"))
             {
-                var windowManager = WindowManager.Instance;
-                if (windowManager != null)
+                // Check if the Tutorial Message is enabled,
+                // otherwise, move on (this should improve performance).
+                if (_myTutorialEnabled)
                 {
-                    // Find out if any windows are currently being shown.
-                    if (windowManager.activeWindows.count > 0)
+                    var windowManager = WindowManager.Instance;
+                    if (windowManager != null)
                     {
-                        // Check if the current window is the Warehouse or Barn/Junkyard window.
-                        if (windowManager.IsWindowActive(WindowID.Warehouse) ||
-                            windowManager.IsWindowActive(WindowID.ItemsExchange))
+                        // Find out if any windows are currently being shown.
+                        if (windowManager.activeWindows.count > 0)
                         {
-                            // Close the Tutorial Message if it's open
-                            if (_myTutorialEnabled)
+                            // Check if the current window is the Warehouse or Barn/Junkyard window.
+                            if (windowManager.IsWindowActive(WindowID.Warehouse) ||
+                                windowManager.IsWindowActive(WindowID.ItemsExchange))
                             {
+                                // Close the Tutorial Message if it's open
                                 UIManager.Get().PopupManager.HideTutorial();
                                 _myTutorialEnabled = false;
                             }
                         }
                     }
                 }
-            }
-
-            // Check if the user pressed the Key in Settings.
-            if (Input.GetKeyDown(_configFile.TransferAllItemsAndGroups))
-            {
-                // Only work on these scenes.
-                if (_currentScene.Equals("garage") ||
-                    _currentScene.Equals("barn") ||
-                    _currentScene.Equals("junkyard"))
+                // Check if the user pressed the TransferAllItemsAndGroups Key in Settings.
+                if (Input.GetKeyDown(_configFile.TransferAllItemsAndGroups))
                 {
                     // These are debug/test methods.
                     //ShowSceneName();
                     //ShowWindowName();
                     //ShowCurrentCategory();
 
-                    // Disable QolMod settings temporarily.
-                    if (_qolGroupAddedPopup || _qolAllPartsPopup)
-                    {
-                        dynamic settingsValue = _qolSettings.GetValue(null);
-                        settingsValue.Value.showPopupforGroupAddedInventory = false;
-                        settingsValue.Value.showPopupforAllPartsinGroup = false;
-                    }
-
                     // Check that the user is in the Garage.
                     if (_currentScene.Equals("garage"))
                     {
                         // Check if the Warehouse is unlocked first.
-                        if (CheckIfWarehouseIsUnlocked())
+                        // If the warehouse hasn't been checked, do that first.
+                        if (_warehouseUnlocked == null)
+                        {
+                            _warehouseUnlocked = CheckIfWarehouseIsUnlocked();
+                        }
+                        if (_warehouseUnlocked == true)
                         {
                             // Do work on the Inventory or Warehouse.
                             MoveInventoryOrWarehouseItems();
@@ -233,13 +238,6 @@ namespace TransferAll
                         {
                             // The user hasn't upgraded their Garage, so show them a message.
                             UIManager.Get().ShowPopup(BuildInfo.Name, "You must unlock the Warehouse Expansion first.", PopupType.Normal);
-                            // Reset the QoLmod settings.
-                            if (_qolGroupAddedPopup || _qolAllPartsPopup)
-                            {
-                                dynamic settingsValue = _qolSettings.GetValue(null);
-                                settingsValue.Value.showPopupforGroupAddedInventory = _qolGroupAddedPopup;
-                                settingsValue.Value.showPopupforAllPartsinGroup = _qolAllPartsPopup;
-                            }
                         }
                     }
                     // Check that the user is in the Barn or Junkyard.
@@ -250,32 +248,23 @@ namespace TransferAll
                         MoveBarnOrJunkyardItems();
                     }
                 }
-            }
-            // Check if the user pressed the Key in Settings.
-            if (Input.GetKeyDown(_configFile.TransferEntireJunkyardOrBarn))
-            {
-                // Check that the user is in the Barn or Junkyard.
-                if (_currentScene.Equals("barn") ||
-                    _currentScene.Equals("junkyard"))
+                // Check if the user pressed the TransferEntireJunkyardOrBarn Key in Settings.
+                if (Input.GetKeyDown(_configFile.TransferEntireJunkyardOrBarn))
                 {
-                    // Disable QolMod settings temporarily.
-                    if (_qolGroupAddedPopup || _qolAllPartsPopup)
+                    // Check that the user is in the Barn or Junkyard.
+                    if (_currentScene.Equals("barn") ||
+                        _currentScene.Equals("junkyard"))
                     {
-                        dynamic settingsValue = _qolSettings.GetValue(null);
-                        settingsValue.Value.showPopupforGroupAddedInventory = false;
-                        settingsValue.Value.showPopupforAllPartsinGroup = false;
+                        // Do work on the Junk and TempInventory.
+                        MoveEntireBarnOrJunkyard();
                     }
-
-                    // Do work on the Junk and TempInventory.
-                    MoveEntireBarnOrJunkyard();
-                }
-                else
-                {
-                    // The user is not at the Barn or Junkyard, so show them a message.
-                    UIManager.Get().ShowPopup(BuildInfo.Name, "This function only works at the Barn or Junkyard", PopupType.Normal);
+                    else
+                    {
+                        // The user is not at the Barn or Junkyard, so show them a message.
+                        UIManager.Get().ShowPopup(BuildInfo.Name, "This function only works at the Barn or Junkyard", PopupType.Normal);
+                    }
                 }
             }
-
         }
 
         /// <summary>
@@ -331,6 +320,7 @@ namespace TransferAll
                 UIManager.Get().ShowPopup(BuildInfo.Name, $"Selected Category: {categoryName}", PopupType.Normal);
             }
         }
+
         /// <summary>
         /// This mod only works if the Warehouse has been unlocked
         /// as an Expansion, so check if it has been unlocked.
@@ -345,7 +335,7 @@ namespace TransferAll
                 // Get a reference to the Garage and Tools Tab of the Toolbox.
                 var garageAndToolsTab = garageLevelManager.garageAndToolsTab;
                 // The upgradeItems list isn't populated until the Tab becomes active,
-                // This fakes the manager into populating the list.
+                // this fakes the manager into populating the list.
                 garageAndToolsTab.PrepareItems();
                 // The Warehouse Expansion is item 8 (index 7) in the list.
                 var warehouseUpgrade = garageAndToolsTab.upgradeItems[7];
@@ -399,52 +389,138 @@ namespace TransferAll
         }
 
         /// <summary>
+        /// Used to Toggle the QoLmod settings temporarily.
+        /// </summary>
+        /// <param name="reset">(True) if we are setting the values back to original.</param>
+        private void ToggleQoLSettings(bool reset = false)
+        {
+            bool tempGroupAdded = false;
+            bool tempAllPartsAdded = false;
+            if (reset)
+            {
+                tempGroupAdded = _qolGroupAddedPopup;
+                tempAllPartsAdded = _qolAllPartsPopup;
+            }
+            
+            dynamic settingsValue = _qolSettings.GetValue(null);
+            settingsValue.Value.showPopupforGroupAddedInventory = tempGroupAdded;
+            settingsValue.Value.showPopupforAllPartsinGroup = tempAllPartsAdded;
+
+            // DEBUG Information
+            //MelonLogger.Msg($"QoLmod Found, showPopupforGroupAddedInventory: {settingsValue.Value.showPopupforGroupAddedInventory}");
+            //MelonLogger.Msg($"QoLmod Found, showPopupforAllPartsinGroup: {settingsValue.Value.showPopupforAllPartsinGroup}");
+        }
+
+        /// <summary>
         /// Method to move Inventory items to a Warehouse (called from MoveInventoryOrWarehouseItems).
         /// </summary>
+        /// <param name="invItems">The list of items to move.</param>
         /// <param name="inventory">The user's Inventory.</param>
         /// <param name="warehouse">The Garage Warehouse.</param>
         /// <returns>(ItemCount, GroupCount) Tuple with the number of items/groups that were moved.</returns>
-        private (int items, int groupItems) MoveInventoryItems(Inventory inventory, Warehouse warehouse)
+        //private (int items, int groupItems) MoveInventoryItems(Inventory inventory, Warehouse warehouse)
+        //{
+        //    // Disable QoLmod settings temporarily.
+        //    ToggleQoLSettings();
+
+        //    // Get the number of items in the user's Inventory.
+        //    int invItemCount = inventory.items.Count;
+        //    // Use the standard For loop instead of ForEach
+        //    // so the list isn't edited during the operation.
+        //    for (int i = 0; i < invItemCount; i++)
+        //    {
+        //        // Always get a reference to the first item in the list.
+        //        var invItem = inventory.items[0];
+        //        // Add the item to the current Warehouse.
+        //        warehouse.Add(invItem);
+        //        // Remove the item from the user's Inventory.
+        //        inventory.items.RemoveAt(0);
+        //    }
+        //    // The user's Item Inventory should now be empty.
+        //    // If not, show the user a message.
+        //    if (inventory.items.Count > 0)
+        //    {
+        //        UIManager.Get().ShowPopup(BuildInfo.Name, "Failed to move items from Inventory", PopupType.Normal);
+        //    }
+
+        //    // Get the number of groups in the user's Inventory.
+        //    int invGroupCount = inventory.groups.Count;
+        //    // Use the standard For loop instead of ForEach,
+        //    // so the list isn't edited during the operation.
+        //    for (int i = 0; i < invGroupCount; i++)
+        //    {
+        //        // Always get a reference to the first group in the list.
+        //        var invGroupItem = inventory.groups[0];
+        //        // Add the group to the current Warehouse.
+        //        warehouse.Add(invGroupItem);
+        //        // Remove the group from the user's Inventory.
+        //        inventory.groups.RemoveAt(0);
+        //    }
+        //    // The user's Group Inventory should now be empty.
+        //    // If not, show the user a message.
+        //    if (inventory.groups.Count > 0)
+        //    {
+        //        UIManager.Get().ShowPopup(BuildInfo.Name, "Failed to move groups from Inventory", PopupType.Normal);
+        //    }
+
+        //    // Reset the QoLmod settings.
+        //    ToggleQoLSettings(reset: true);
+
+        //    // Return the number of Items and Groups that were moved.
+        //    return (invItemCount, invGroupCount);
+        //}
+        private (int items, int groupItems) MoveInventoryItems(
+            Il2CppSystem.Collections.Generic.List<BaseItem> invItems, 
+            Inventory inventory, Warehouse warehouse)
         {
-            // Get the number of items in the user's Inventory.
-            int invItemCount = inventory.items.Count;
+            // Disable QoLmod settings temporarily.
+            ToggleQoLSettings();
+
+            // Get the number of BaseItems in the Inventory list.
+            int invCount = invItems.Count;
+            // Setup temporary counts to return at the end.
+            int invItemCount = 0;
+            int invGroupCount = 0;
             // Use the standard For loop instead of ForEach
             // so the list isn't edited during the operation.
-            for (int i = 0; i < invItemCount; i++)
+            for (int i = 0; i < invCount; i++)
             {
-                // Always get a reference to the first item in the list.
-                var invItem = inventory.items[0];
-                // Add the item to the current Warehouse.
-                warehouse.Add(invItem);
-                // Remove the item from the user's Inventory.
-                inventory.items.RemoveAt(0);
+                // Always get a reference to the first BaseItem in the list.
+                var baseItem = invItems[0];
+                // Try to cast the BaseItem to an Item.
+                if (baseItem.TryCast<Item>() != null)
+                {
+                    // The BaseItem is an Item, so add it to the current Warehouse.
+                    warehouse.Add(baseItem.TryCast<Item>());
+                    // Delete the Item from the Inventory.
+                    inventory.Delete(baseItem.TryCast<Item>());
+                    // Remove the BaseItem from the temporary list.
+                    invItems.RemoveAt(0);
+                    // Increment the temporary count of items.
+                    invItemCount++;
+                }
+                // Try to cast the BaseItem to a GroupItem.
+                if (baseItem.TryCast<GroupItem>() != null)
+                {
+                    // The BaseItem is a GroupItem, so add it to the current Warehouse.
+                    warehouse.Add(baseItem.TryCast<GroupItem>());
+                    // Delete the GroupItem from the Warehouse.
+                    inventory.DeleteGroup(baseItem.UID);
+                    // Remove the BaseItem from the temporary list.
+                    invItems.RemoveAt(0);
+                    // Increment the temporary count of groups.
+                    invGroupCount++;
+                }
             }
-            // The user's Item Inventory should now be empty.
+            // The Inventory should now be empty.
             // If not, show the user a message.
-            if (inventory.items.Count > 0)
+            if (invItems.Count > 0)
             {
                 UIManager.Get().ShowPopup(BuildInfo.Name, "Failed to move items from Inventory", PopupType.Normal);
             }
 
-            // Get the number of groups in the user's Inventory.
-            int invGroupCount = inventory.groups.Count;
-            // Use the standard For loop instead of ForEach,
-            // so the list isn't edited during the operation.
-            for (int i = 0; i < invGroupCount; i++)
-            {
-                // Always get a reference to the first group in the list.
-                var invGroupItem = inventory.groups[0];
-                // Add the group to the current Warehouse.
-                warehouse.Add(invGroupItem);
-                // Remove the group from the user's Inventory.
-                inventory.groups.RemoveAt(0);
-            }
-            // The user's Group Inventory should now be empty.
-            // If not, show the user a message.
-            if (inventory.groups.Count > 0)
-            {
-                UIManager.Get().ShowPopup(BuildInfo.Name, "Failed to move groups from Inventory", PopupType.Normal);
-            }
+            // Reset the QoLmod settings.
+            ToggleQoLSettings(reset: true);
 
             // Return the number of Items and Groups that were moved.
             return (invItemCount, invGroupCount);
@@ -452,15 +528,75 @@ namespace TransferAll
         /// <summary>
         /// Method to move Warehouse items to the user's Inventory (called from MoveInventoryOrWarehouseItems).
         /// </summary>
+        /// <param name="warehouseItems">The list of items to move.</param>
         /// <param name="inventory">The user's Inventory.</param>
         /// <param name="warehouse">The Garage Warehouse.</param>
         /// <returns>(ItemCount, GroupCount) Tuple with the number of items/groups that were moved.</returns>
-        private (int items, int groupItems) MoveWarehouseItems(Inventory inventory, Warehouse warehouse)
+        //private (int items, int groupItems) MoveWarehouseItems(Inventory inventory, Warehouse warehouse)
+        //{
+        //    // Disable QoLmod settings temporarily.
+        //    ToggleQoLSettings();
+
+        //    // There is no easy way to get individual item and group lists,
+        //    // so get all the items and then separate them later.
+        //    var warehouseItems = warehouse.GetAllItemsAndGroups();
+        //    // Get the nummber of total items in the Warehouse.
+        //    int wareCount = warehouseItems.Count;
+        //    // Setup temporary counts to return at the end.
+        //    int wareItemCount = 0;
+        //    int wareGroupCount = 0;
+        //    // Use the standard For loop instead of ForEach,
+        //    // so the list isn't edited during the operation.
+        //    for (int i = 0; i < wareCount; i++)
+        //    {
+        //        // Always get a reference to the first BaseItem in the list.
+        //        var baseItem = warehouseItems[0];
+        //        // Try to cast the BaseItem to an Item.
+        //        if (baseItem.TryCast<Item>() != null)
+        //        {
+        //            // The BaseItem is an Item, so add it to the user's Inventory.
+        //            inventory.Add(baseItem.TryCast<Item>());
+        //            // Delete the Item from the Warehouse.
+        //            warehouse.Delete(baseItem.TryCast<Item>());
+        //            // Remove the BaseItem from the temporary list.
+        //            warehouseItems.RemoveAt(0);
+        //            // Increment the temporary count of items.
+        //            wareItemCount++;
+        //        }
+        //        // Try to cast the BaseItem to a GroupItem.
+        //        if (baseItem.TryCast<GroupItem>() != null)
+        //        {
+        //            // The BaseItem is a GroupItem, so add it to the user's Inventory.
+        //            inventory.AddGroup(baseItem.TryCast<GroupItem>());
+        //            // Delete the GroupItem from the Warehouse.
+        //            warehouse.Delete(baseItem.TryCast<GroupItem>());
+        //            // Remove the BaseItem from the temporary list.
+        //            warehouseItems.RemoveAt(0);
+        //            // Increment the temporary count of groups.
+        //            wareGroupCount++;
+        //        }
+        //    }
+        //    // The Warehouse should now be empty.
+        //    // If not, show the user a message.
+        //    if (warehouse.GetAllItemsAndGroups().Count > 0)
+        //    {
+        //        UIManager.Get().ShowPopup(BuildInfo.Name, "Failed to move items from Warehouse", PopupType.Normal);
+        //    }
+
+        //    // Reset the QoLmod settings.
+        //    ToggleQoLSettings(reset: true);
+
+        //    // Return the number of Items and Groups that were moved.
+        //    return (wareItemCount, wareGroupCount);
+        //}
+        private (int items, int groupItems) MoveWarehouseItems(
+            Il2CppSystem.Collections.Generic.List<BaseItem> warehouseItems, 
+            Inventory inventory, Warehouse warehouse)
         {
-            // There is no easy way to get individual item and group lists,
-            // so get all the items and then separate them later.
-            var warehouseItems = warehouse.GetAllItemsAndGroups();
-            // Get the nummber of total items in the Warehouse.
+            // Disable QoLmod settings temporarily.
+            ToggleQoLSettings();
+
+            // Get the nummber of total BaseItems in the Warehouse.
             int wareCount = warehouseItems.Count;
             // Setup temporary counts to return at the end.
             int wareItemCount = 0;
@@ -498,10 +634,13 @@ namespace TransferAll
             }
             // The Warehouse should now be empty.
             // If not, show the user a message.
-            if (warehouse.GetAllItemsAndGroups().Count > 0)
+            if (warehouseItems.Count > 0)
             {
                 UIManager.Get().ShowPopup(BuildInfo.Name, "Failed to move items from Warehouse", PopupType.Normal);
             }
+
+            // Reset the QoLmod settings.
+            ToggleQoLSettings(reset: true);
 
             // Return the number of Items and Groups that were moved.
             return (wareItemCount, wareGroupCount);
@@ -528,17 +667,32 @@ namespace TransferAll
                     if (warehouseWindow.currentTab == 0)
                     {
                         // This is the Inventory Tab
-                        if (inventory.GetAllItemsAndGroups().Count > 0)
+                        // Setup a temporary List<BaseItem> to hold the items.
+                        Il2CppSystem.Collections.Generic.List<BaseItem> items = new Il2CppSystem.Collections.Generic.List<BaseItem>();
+                        // Check if the user has selected to move items
+                        // for the current category only.
+                        if (_configFile.TransferByCategory)
+                        {
+                            var currentTab = warehouseWindow.warehouseInventoryTab;
+                            items = inventory.GetItemsForCategory(currentTab.currentCategory);
+                        }
+                        else
+                        {
+                            // The user wants to move everything, so get that list.
+                            items = inventory.GetAllItemsAndGroups();
+                        }
+
+                        if (items.Count > 0)
                         {
                             // Check if the user's Inventory has more items/groups than the user has configured in Settings.
-                            if (inventory.GetAllItemsAndGroups().Count >= _configFile.MinNumOfItemsWarning)
+                            if (items.Count >= _configFile.MinNumOfItemsWarning)
                             {
                                 // Ask the user to confirm the move because there are a lot of items/groups.
-                                System.Action<bool> confirmMove = new System.Action<bool>(response =>
+                                Action<bool> confirmMove = new Action<bool>(response =>
                                 {
                                     if (response)
                                     {
-                                        (var tempItems, var tempGroups) = MoveInventoryItems(inventory, warehouse);
+                                        (var tempItems, var tempGroups) = MoveInventoryItems(items, inventory, warehouse);
                                         // Show the user the number of items and groups that were moved.
                                         uiManager.ShowPopup(BuildInfo.Name, $"Items Moved From Inventory: {tempItems}", PopupType.Normal);
                                         uiManager.ShowPopup(BuildInfo.Name, $"Groups Moved From Inventory: {tempGroups}", PopupType.Normal);
@@ -547,12 +701,20 @@ namespace TransferAll
                                         warehouseWindow.warehouseInventoryTab.Refresh();
                                     }
                                 });
-                                uiManager.ShowAskWindow("Move Items", $"Move your entire inventory to {warehouse.GetCurrentSelectedWarehouseName()}?", confirmMove);
+                                string category = string.Empty;
+                                if (_configFile.TransferByCategory)
+                                {
+                                    if (warehouseWindow.warehouseInventoryTab.currentCategory != InventoryCategories.All)
+                                    {
+                                        category = $" {warehouseWindow.warehouseInventoryTab.currentCategory}";
+                                    }
+                                }
+                                uiManager.ShowAskWindow("Move Items", $"Move all{category} items in inventory to {warehouse.GetCurrentSelectedWarehouseName()}?", confirmMove);
                             }
                             else
                             {
                                 // The number of items is below the settings, so move the items/groups.
-                                (var tempItems, var tempGroups) = MoveInventoryItems(inventory, warehouse);
+                                (var tempItems, var tempGroups) = MoveInventoryItems(items, inventory, warehouse);
                                 // Show the user the number of items and groups that were moved.
                                 uiManager.ShowPopup(BuildInfo.Name, $"Items Moved From Inventory: {tempItems}", PopupType.Normal);
                                 uiManager.ShowPopup(BuildInfo.Name, $"Groups Moved From Inventory: {tempGroups}", PopupType.Normal);
@@ -570,15 +732,30 @@ namespace TransferAll
                     else if (warehouseWindow.currentTab == 1)
                     {
                         // This is the Warehouse Tab
-                        if (warehouse.GetAllItemsAndGroups().Count > 0)
+                        // Setup a temporary List<BaseItem> to hold the items.
+                        Il2CppSystem.Collections.Generic.List<BaseItem> items = new Il2CppSystem.Collections.Generic.List<BaseItem>();
+                        // Check if the user has selected to move items
+                        // for the current category only.
+                        if (_configFile.TransferByCategory)
+                        {
+                            var currentTab = warehouseWindow.warehouseTab;
+                            items = warehouse.GetItemsForCategory(currentTab.currentCategory);
+                        }
+                        else
+                        {
+                            // The user wants to move everything, so get that list.
+                            items = warehouse.GetAllItemsAndGroups();
+                        }
+
+                        if (items.Count > 0)
                         {
                             // Check if the Warehouse has more items/groups than the user has configured in Settings.
-                            if (warehouse.GetAllItemsAndGroups().Count >= _configFile.MinNumOfItemsWarning)
+                            if (items.Count >= _configFile.MinNumOfItemsWarning)
                             {
                                 // Ask the user to confirm the move because there are a lot of items/groups.
-                                System.Action<bool> confirmMove = new System.Action<bool>(response =>
+                                Action<bool> confirmMove = new Action<bool>(response =>
                                 {
-                                    (var tempItems, var tempGroups) = MoveWarehouseItems(inventory, warehouse);
+                                    (var tempItems, var tempGroups) = MoveWarehouseItems(items, inventory, warehouse);
                                     // Show the user the number of items and groups that were moved.
                                     uiManager.ShowPopup(BuildInfo.Name, $"Items Moved From Warehouse: {tempItems}", PopupType.Normal);
                                     uiManager.ShowPopup(BuildInfo.Name, $"Groups Moved From Warehouse: {tempGroups}", PopupType.Normal);
@@ -586,12 +763,20 @@ namespace TransferAll
                                     // Refresh the Warehouse Tab.
                                     warehouseWindow.warehouseTab.Refresh(true);
                                 });
-                                uiManager.ShowAskWindow("Move Items", $"Move all items in {warehouse.GetCurrentSelectedWarehouseName()} to your Inventory?", confirmMove);
+                                string category = string.Empty;
+                                if (_configFile.TransferByCategory)
+                                {
+                                    if (warehouseWindow.warehouseTab.currentCategory != InventoryCategories.All)
+                                    {
+                                        category = $" {warehouseWindow.warehouseTab.currentCategory}";
+                                    }
+                                }
+                                uiManager.ShowAskWindow("Move Items", $"Move all{category} items in {warehouse.GetCurrentSelectedWarehouseName()} to your Inventory?", confirmMove);
                             }
                             else
                             {
                                 // The number of items is below the settings, so move the items/groups.
-                                (var tempItems, var tempGroups) = MoveWarehouseItems(inventory, warehouse);
+                                (var tempItems, var tempGroups) = MoveWarehouseItems(items, inventory, warehouse);
                                 // Show the user the number of items and groups that were moved.
                                 uiManager.ShowPopup(BuildInfo.Name, $"Items Moved From Warehouse: {tempItems}", PopupType.Normal);
                                 uiManager.ShowPopup(BuildInfo.Name, $"Groups Moved From Warehouse: {tempGroups}", PopupType.Normal);
@@ -613,14 +798,6 @@ namespace TransferAll
             else
             {
                 ShowTutorialMessage(isWarehouse: true);
-            }
-
-            // Reset the QoLmod settings.
-            if (_qolGroupAddedPopup || _qolAllPartsPopup)
-            {
-                dynamic settingsValue = _qolSettings.GetValue(null);
-                settingsValue.Value.showPopupforGroupAddedInventory = _qolGroupAddedPopup;
-                settingsValue.Value.showPopupforAllPartsinGroup = _qolAllPartsPopup;
             }
         }
 
@@ -646,6 +823,9 @@ namespace TransferAll
                 var itemsExchangeWindow = windowManager.GetWindowByID<ItemsExchangeWindow>(WindowID.ItemsExchange);
                 if (itemsExchangeWindow != null)
                 {
+                    // Disable QoLmod settings temporarily.
+                    ToggleQoLSettings();
+
                     // Check which Tab is currently being displayed.
                     if (itemsExchangeWindow.currentTab == 0)
                     {
@@ -808,6 +988,9 @@ namespace TransferAll
                         // Refresh the Items Exchange Tab
                         itemsExchangeWindow.collectedTab.Refresh(true);
                     }
+
+                    // Reset the QoLmod settings.
+                    ToggleQoLSettings(reset: true);
                 }
             }
             // The Junk Items Window is not displayed,
@@ -815,14 +998,6 @@ namespace TransferAll
             else
             {
                 ShowTutorialMessage(isWarehouse: false);
-            }
-
-            // Reset the QoLmod settings.
-            if (_qolGroupAddedPopup || _qolAllPartsPopup)
-            {
-                dynamic settingsValue = _qolSettings.GetValue(null);
-                settingsValue.Value.showPopupforGroupAddedInventory = _qolGroupAddedPopup;
-                settingsValue.Value.showPopupforAllPartsinGroup = _qolAllPartsPopup;
             }
         }
         /// <summary>
@@ -878,14 +1053,6 @@ namespace TransferAll
             if (junkCount > 0)
             {
                 uiManager.ShowPopup(BuildInfo.Name, $"Junk items moved: {junkCount}.", PopupType.Normal);
-            }
-
-            // Reset the QoLmod settings.
-            if (_qolGroupAddedPopup || _qolAllPartsPopup)
-            {
-                dynamic settingsValue = _qolSettings.GetValue(null);
-                settingsValue.Value.showPopupforGroupAddedInventory = _qolGroupAddedPopup;
-                settingsValue.Value.showPopupforAllPartsinGroup = _qolAllPartsPopup;
             }
         }
     }
