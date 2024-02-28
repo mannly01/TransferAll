@@ -1,6 +1,9 @@
-# TRANSFER ALL - 1.0.1
+# TRANSFER ALL - 1.1.0
 Mod to automatically transfer all parts from your Inventory to the Warehouse.
 Also, works in the Barn and Junkyard; including automatically moving all junk to the shopping cart.
+
+## UPDATE 1.1.0
+* Added the option (in TransferAll.cfg) to move only the items in the selected category while in the Inventory or Warehouse.
 
 ## REQUIREMENTS
 * [MelonLoader 0.5.7](https://github.com/LavaGang/MelonLoader/releases/tag/v0.5.7)
@@ -19,6 +22,7 @@ Also, works in the Barn and Junkyard; including automatically moving all junk to
 * TransferAllItemsAndGroups: P
 * TransferEntireJunkyardOrBarn: L
 * MinNumOfItemsWarning: 500
+* TransferByCategory: false
 - [Keycode Values](https://docs.unity3d.com/ScriptReference/KeyCode.html)
 
 ## INSTALLATION (Same as all other MelonLoader mods)
