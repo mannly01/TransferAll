@@ -1,13 +1,15 @@
-﻿using CMS.UI;
+﻿using CMS.Helpers;
+using CMS.UI;
 using CMS.UI.Logic;
 using CMS.UI.Windows;
 using MelonLoader;
 using System;
-using System.IO;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace TransferAll
 {
@@ -20,7 +22,7 @@ namespace TransferAll
         public const string Description = "Mod to automatically transfer all parts from your Inventory to the Warehouse. Also, works in the Barn and Junkyard; including automatically moving all junk to the shopping cart.";
         public const string Author = "mannly82";
         public const string Company = "The Mann Design";
-        public const string Version = "1.1.0";
+        public const string Version = "1.2.0";
         public const string DownloadLink = "https://www.nexusmods.com/carmechanicsimulator2021/mods/174";
         public const string MelonGameCompany = "Red Dot Games";
         public const string MelonGameName = "Car Mechanic Simulator 2021";
@@ -56,6 +58,11 @@ namespace TransferAll
         /// </summary>
         public bool TransferByCategory => _transferByCategory.Value;
         private readonly MelonPreferences_Entry<bool> _transferByCategory;
+        /// <summary>
+        /// User setting to select whether the TransferEntire key only moves parts and not body parts.
+        /// </summary>
+        public bool TransferPartsOnlyAtBarnOrJunkyard => _transferPartsOnlyAtBarnOrJunkyard.Value;
+        private readonly MelonPreferences_Entry<bool> _transferPartsOnlyAtBarnOrJunkyard;
 
         /// <summary>
         /// Implementation of Settings properties.
@@ -64,7 +71,7 @@ namespace TransferAll
         {
             _settings = MelonPreferences.CreateCategory(SettingsCatName);
             _settings.SetFilePath($"Mods/TransferAll.cfg");
-            _transferAllBindKey = _settings.CreateEntry(nameof(TransferAllItemsAndGroups), KeyCode.P, 
+            _transferAllBindKey = _settings.CreateEntry(nameof(TransferAllItemsAndGroups), KeyCode.K, 
                 description: "Press This Key to transfer all current items and groups.");
             _transferEntireBindKey = _settings.CreateEntry(nameof(TransferEntireJunkyardOrBarn), KeyCode.L,
                 description: "ONLY WORKS AT BARN AND JUNKYARD." + Il2CppSystem.Environment.NewLine + "Press This Key to transfer all items and groups from ALL junk stashes.");
@@ -72,6 +79,8 @@ namespace TransferAll
                 description: "This will display a warning if the items/groups are above this number (to prevent large moves by accident).");
             _transferByCategory = _settings.CreateEntry(nameof(TransferByCategory), false,
                 description: "Set this to true and the TransferAllItemsAndGroups key will only move items in the selected category (engine, suspension, etc.).");
+            _transferPartsOnlyAtBarnOrJunkyard = _settings.CreateEntry(nameof(TransferPartsOnlyAtBarnOrJunkyard), false,
+                description: "Set this to true and only non-body parts are moved to the Shopping Cart in the Barn/Junkyard.");
 
             // Remove the old configuration if it's still there.
             _settings.DeleteEntry("TransferAllItemsAndGroupsLeftControlPlus");
@@ -198,7 +207,6 @@ namespace TransferAll
                     var windowManager = WindowManager.Instance;
                     if (windowManager != null)
                     {
-                        // Find out if any windows are currently being shown.
                         if (windowManager.activeWindows.count > 0)
                         {
                             // Check if the current window is the Warehouse or Barn/Junkyard window.
@@ -212,6 +220,7 @@ namespace TransferAll
                         }
                     }
                 }
+                
                 // Check if the user pressed the TransferAllItemsAndGroups Key in Settings.
                 if (Input.GetKeyDown(_configFile.TransferAllItemsAndGroups))
                 {
@@ -220,48 +229,56 @@ namespace TransferAll
                     //ShowWindowName();
                     //ShowCurrentCategory();
 
-                    // Check that the user is in the Garage.
-                    if (_currentScene.Equals("garage"))
+                    // Check if the user is currently using the Seach box.
+                    if (!CheckIfInputIsFocused())
                     {
-                        // Check if the Warehouse is unlocked first.
-                        // If the warehouse hasn't been checked, do that first.
-                        if (_warehouseUnlocked == null)
+                        // Check that the user is in the Garage.
+                        if (_currentScene.Equals("garage"))
                         {
-                            _warehouseUnlocked = CheckIfWarehouseIsUnlocked();
+                            // Check if the Warehouse is unlocked first.
+                            // If the warehouse hasn't been checked, do that first.
+                            if (_warehouseUnlocked == null)
+                            {
+                                _warehouseUnlocked = CheckIfWarehouseIsUnlocked();
+                            }
+                            if (_warehouseUnlocked == true)
+                            {
+                                // Do work on the Inventory or Warehouse.
+                                MoveInventoryOrWarehouseItems();
+                            }
+                            else
+                            {
+                                // The user hasn't upgraded their Garage, so show them a message.
+                                UIManager.Get().ShowPopup(BuildInfo.Name, "You must unlock the Warehouse Expansion first.", PopupType.Normal);
+                            }
                         }
-                        if (_warehouseUnlocked == true)
+                        // Check that the user is in the Barn or Junkyard.
+                        else if (_currentScene.Equals("barn") ||
+                                 _currentScene.Equals("junkyard"))
                         {
-                            // Do work on the Inventory or Warehouse.
-                            MoveInventoryOrWarehouseItems();
+                            // Do work on the Junk and TempInventory.
+                            MoveBarnOrJunkyardItems();
                         }
-                        else
-                        {
-                            // The user hasn't upgraded their Garage, so show them a message.
-                            UIManager.Get().ShowPopup(BuildInfo.Name, "You must unlock the Warehouse Expansion first.", PopupType.Normal);
-                        }
-                    }
-                    // Check that the user is in the Barn or Junkyard.
-                    else if (_currentScene.Equals("barn") ||
-                             _currentScene.Equals("junkyard"))
-                    {
-                        // Do work on the Junk and TempInventory.
-                        MoveBarnOrJunkyardItems();
                     }
                 }
                 // Check if the user pressed the TransferEntireJunkyardOrBarn Key in Settings.
                 if (Input.GetKeyDown(_configFile.TransferEntireJunkyardOrBarn))
                 {
-                    // Check that the user is in the Barn or Junkyard.
-                    if (_currentScene.Equals("barn") ||
-                        _currentScene.Equals("junkyard"))
+                    // Check if the user is currently using the Seach box.
+                    if (!CheckIfInputIsFocused())
                     {
-                        // Do work on the Junk and TempInventory.
-                        MoveEntireBarnOrJunkyard();
-                    }
-                    else
-                    {
-                        // The user is not at the Barn or Junkyard, so show them a message.
-                        UIManager.Get().ShowPopup(BuildInfo.Name, "This function only works at the Barn or Junkyard", PopupType.Normal);
+                        // Check that the user is in the Barn or Junkyard.
+                        if (_currentScene.Equals("barn") ||
+                            _currentScene.Equals("junkyard"))
+                        {
+                            // Do work on the Junk and TempInventory.
+                            MoveEntireBarnOrJunkyard();
+                        }
+                        else
+                        {
+                            // The user is not at the Barn or Junkyard, so show them a message.
+                            UIManager.Get().ShowPopup(BuildInfo.Name, "This function only works at the Barn or Junkyard", PopupType.Normal);
+                        }
                     }
                 }
             }
@@ -345,6 +362,27 @@ namespace TransferAll
             }
 
             // Default to failing.
+            return false;
+        }
+        /// <summary>
+        /// If the user is using the Search box,
+        /// the mod should do nothing.
+        /// </summary>
+        /// <returns>(bool) True if the Search/Input Field is being used.</returns>
+        private bool CheckIfInputIsFocused()
+        {
+            var inputFields = UnityEngine.Object.FindObjectsOfType<InputField>();
+            foreach (var inputField in inputFields)
+            {
+                if (inputField != null)
+                {
+                    if (inputField.isFocused)
+                    {
+                        return true;
+                    }
+                }
+            }
+
             return false;
         }
 
@@ -647,13 +685,16 @@ namespace TransferAll
                                 // Ask the user to confirm the move because there are a lot of items/groups.
                                 Action<bool> confirmMove = new Action<bool>(response =>
                                 {
-                                    (var tempItems, var tempGroups) = MoveWarehouseItems(items, inventory, warehouse);
-                                    // Show the user the number of items and groups that were moved.
-                                    uiManager.ShowPopup(BuildInfo.Name, $"Items Moved From Warehouse: {tempItems}", PopupType.Normal);
-                                    uiManager.ShowPopup(BuildInfo.Name, $"Groups Moved From Warehouse: {tempGroups}", PopupType.Normal);
+                                    if (response)
+                                    {
+                                        (var tempItems, var tempGroups) = MoveWarehouseItems(items, inventory, warehouse);
+                                        // Show the user the number of items and groups that were moved.
+                                        uiManager.ShowPopup(BuildInfo.Name, $"Items Moved From Warehouse: {tempItems}", PopupType.Normal);
+                                        uiManager.ShowPopup(BuildInfo.Name, $"Groups Moved From Warehouse: {tempGroups}", PopupType.Normal);
 
-                                    // Refresh the Warehouse Tab.
-                                    warehouseWindow.warehouseTab.Refresh(true);
+                                        // Refresh the Warehouse Tab.
+                                        warehouseWindow.warehouseTab.Refresh(true);
+                                    }
                                 });
                                 string category = string.Empty;
                                 if (_configFile.TransferByCategory)
@@ -728,15 +769,37 @@ namespace TransferAll
                         var junkItems = junk.ItemsInTrash;
                         // Store the number of junk in the Stash.
                         int junkCount = junkItems.Count;
+                        //MelonLogger.Msg($"# of Junk Parts: {junkCount}");
+                        // Create a temporary list to hold the body part items.
+                        Il2CppSystem.Collections.Generic.List<BaseItem> bodyParts =
+                            new Il2CppSystem.Collections.Generic.List<BaseItem>();
+                        if (_configFile.TransferPartsOnlyAtBarnOrJunkyard)
+                        {
+                            // If the user has turned on the setting,
+                            // create a list of all the body parts in the stash.
+                            bodyParts = UIHelper.GetBodyItems(junkItems);
+                            // Subtract the number of body parts from junk parts.
+                            junkCount -= bodyParts.Count;
+                            //MelonLogger.Msg($"# of Body Parts: {bodyParts.Count}");
+                            //MelonLogger.Msg($"# of Junk Parts: {junkCount}");
+                        }
                         // Check if there is junk to move.
                         if (junkCount > 0)
                         {
+
                             // Create temporay lists to hold the items and group.
                             List<Item> tempItems = new List<Item>();
                             List<GroupItem> tempGroups = new List<GroupItem>();
                             // We are only storing items, so a ForEach loop works here.
                             foreach (var baseItem in junkItems)
                             {
+                                if (_configFile.TransferPartsOnlyAtBarnOrJunkyard)
+                                {
+                                    if (bodyParts.Contains(baseItem))
+                                    {
+                                        continue;
+                                    }
+                                }
                                 // Try to cast the BaseItem to an Item.
                                 if (baseItem.TryCast<Item>() != null)
                                 {
@@ -756,33 +819,43 @@ namespace TransferAll
                                 var tempInventory = gameManager.TempInventory;
                                 // We're using a temporary list, so ForEach loops work here.
                                 // We aren't editing the temporary list, just the Junk and Temp Inventory.
-                                foreach (var tempItem in tempItems)
+                                if (tempItems.Count > 0)
                                 {
-                                    // Add the Item to the Temp Inventory (Collected Tab).
-                                    tempInventory.items.Add(tempItem);
-                                    // Remove the Item from the Junk Stash.
-                                    junk.ItemsInTrash.Remove(tempItem);
+                                    foreach (var tempItem in tempItems)
+                                    {
+                                        // Add the Item to the Temp Inventory (Collected Tab).
+                                        tempInventory.items.Add(tempItem);
+                                        // Remove the Item from the Junk Stash.
+                                        junk.ItemsInTrash.Remove(tempItem);
+                                    }
+
+                                    // Show the user the number of items that were moved.
+                                    uiManager.ShowPopup(BuildInfo.Name, $"Items Moved From Junk: {tempItems.Count}", PopupType.Normal);
                                 }
+                                // Add the temporary list to the Global Dictionaries.
+                                // This allows the user to "undo" the moves to each Junk Stash.
+                                _tempItems.Add(junk.Pointer, tempItems);
+
                                 // We're using a temporary list, so ForEach loops work here.
                                 // We aren't editing the temporary list, just the Junk and Temp Inventory.
                                 // *** The Barn and Junkyard don't seem to generate groups, ***
                                 // *** but we can't take that for granted in the future. ***
-                                foreach (var tempGroup in tempGroups)
+                                if (tempGroups.Count > 0)
                                 {
-                                    // Add the Group to the Temp Inventory (Collected Tab).
-                                    tempInventory.items.Add(tempGroup);
-                                    // Remove the Group from the Junk Stash.
-                                    junk.ItemsInTrash.Remove(tempGroup);
+                                    foreach (var tempGroup in tempGroups)
+                                    {
+                                        // Add the Group to the Temp Inventory (Collected Tab).
+                                        tempInventory.items.Add(tempGroup);
+                                        // Remove the Group from the Junk Stash.
+                                        junk.ItemsInTrash.Remove(tempGroup);
+                                    }
+
+                                    // Show the user the number of groups that were moved.
+                                    uiManager.ShowPopup(BuildInfo.Name, $"Groups Moved From Junk: {tempGroups.Count}", PopupType.Normal);
                                 }
-
-                                // Add the temporary lists to the Global Dictionaries.
+                                // Add the temporary list to the Global Dictionaries.
                                 // This allows the user to "undo" the moves to each Junk Stash.
-                                _tempItems.Add(junk.Pointer, tempItems);
                                 _tempGroups.Add(junk.Pointer, tempGroups);
-
-                                // Show the user the number of items and groups that were moved.
-                                uiManager.ShowPopup(BuildInfo.Name, $"Items Moved From Junk: {tempItems.Count}", PopupType.Normal);
-                                uiManager.ShowPopup(BuildInfo.Name, $"Groups Moved From Junk: {tempGroups.Count}", PopupType.Normal);
                             }
                             // Something went wrong with the temporary moves,
                             // so show the user a message.
@@ -807,63 +880,81 @@ namespace TransferAll
                         var tempInventory = gameManager.TempInventory;
                         // Get a reference to the Junk object.
                         var junk = itemsExchangeWindow.junk;
+                        // We may not be moving body parts,
+                        // so get a count of items already in the stash.
+                        int junkCount = junk.ItemsInTrash.Count;
 
                         // Get the list of temporary items from the Global Dictionary.
                         // We will use these lists to move the items back to the individual Junk Stashes.
                         _tempItems.TryGetValue(junk.Pointer, out List<Item> tempItems);
-                        // Check if there are items to move.
-                        if (tempItems.Count > 0)
+                        if (tempItems != null)
                         {
-                            // Loop through the temporary list and add the items to the Junk Stash.
-                            // A ForEach loop probably would have worked here, also.
-                            for (int i = 0; tempItems.Count > i; i++)
+                            // Check if there are items to move.
+                            if (tempItems.Count > 0)
                             {
-                                junk.ItemsInTrash.Add(tempItems[i]);
+                                // Loop through the temporary list and add the items to the Junk Stash.
+                                // A ForEach loop probably would have worked here, also.
+                                for (int i = 0; tempItems.Count > i; i++)
+                                {
+                                    junk.ItemsInTrash.Add(tempItems[i]);
+                                }
+                            }// There were no items to move, so show the user a message.
+                            else
+                            {
+                                uiManager.ShowPopup(BuildInfo.Name, "No items to move", PopupType.Normal);
                             }
-                        }
-                        // There were no items to move, so show the user a message.
-                        else
-                        {
-                            uiManager.ShowPopup(BuildInfo.Name, "No items to move", PopupType.Normal);
                         }
                         // Get the list of temporary groups from the Global Dictionary.
                         // We will use these lists to move the groups back to the individual Junk Stashes.
                         _tempGroups.TryGetValue(junk.Pointer, out List<GroupItem> tempGroups);
-                        // Check if there are groups to move.
-                        if (tempGroups.Count > 0)
+                        if (tempGroups != null)
                         {
-                            // Loop through the temporary list and add the groups to the Junk Stash.
-                            // A ForEach loop probably would have worked here, also.
-                            for (int i = 0; i < tempGroups.Count; i++)
+                            // Check if there are groups to move.
+                            if (tempGroups.Count > 0)
                             {
-                                junk.ItemsInTrash.Add(tempGroups[i]);
+                                // Loop through the temporary list and add the groups to the Junk Stash.
+                                // A ForEach loop probably would have worked here, also.
+                                for (int i = 0; i < tempGroups.Count; i++)
+                                {
+                                    junk.ItemsInTrash.Add(tempGroups[i]);
+                                }
+                            }
+                            // There were no groups to move, so show the user a message.
+                            else
+                            {
+                                uiManager.ShowPopup(BuildInfo.Name, "No groups to move", PopupType.Normal);
                             }
                         }
-                        // There were no groups to move, so show the user a message.
-                        else
-                        {
-                            uiManager.ShowPopup(BuildInfo.Name, "No groups to move", PopupType.Normal);
-                        }
+                        
                         // Check that all the items and groups were added to the Junk Stash.
-                        if ((tempItems.Count + tempGroups.Count) == junk.ItemsInTrash.Count)
+                        if ((tempItems.Count + tempGroups.Count + junkCount) == junk.ItemsInTrash.Count)
                         {
-                            // Loop through the temporary list and remove the items from the Temp Inventory.
-                            // A ForEach loop probably would have worked here, also.
-                            for (int i = 0; tempItems.Count > i; i++)
+                            if (tempItems.Count > 0)
                             {
-                                tempInventory.RemoveItem(tempItems[i]);
-                            }
-                            // Loop through the temporary list and remove the groups from the Temp Inventory.
-                            // A ForEach loop probably would have worked here, also.
-                            for (int i = 0; i < tempGroups.Count; i++)
-                            {
-                                tempInventory.RemoveItem(tempGroups[i]);
-                            }
-                            // Show the user the number of items and groups that were moved.
-                            uiManager.ShowPopup(BuildInfo.Name, $"Items Moved From Junk: {tempItems.Count}", PopupType.Normal);
-                            uiManager.ShowPopup(BuildInfo.Name, $"Groups Moved From Junk: {tempGroups.Count}", PopupType.Normal);
+                                // Loop through the temporary list and remove the items from the Temp Inventory.
+                                // A ForEach loop probably would have worked here, also.
+                                for (int i = 0; tempItems.Count > i; i++)
+                                {
+                                    tempInventory.RemoveItem(tempItems[i]);
+                                }
 
-                            // Remove the temporary lists from the Global Dictionaries.
+                                // Show the user the number of items that were moved.
+                                uiManager.ShowPopup(BuildInfo.Name, $"Items Moved From Junk: {tempItems.Count}", PopupType.Normal);
+                            }
+                            if (tempGroups.Count > 0)
+                            {
+                                // Loop through the temporary list and remove the groups from the Temp Inventory.
+                                // A ForEach loop probably would have worked here, also.
+                                for (int i = 0; i < tempGroups.Count; i++)
+                                {
+                                    tempInventory.RemoveItem(tempGroups[i]);
+                                }
+
+                                // Show the user the number of items and groups that were moved.
+                                uiManager.ShowPopup(BuildInfo.Name, $"Groups Moved From Junk: {tempGroups.Count}", PopupType.Normal);
+                            }
+
+                            // Remove the temporary list from the Global Dictionaries.
                             _tempItems.Remove(junk.Pointer);
                             _tempGroups.Remove(junk.Pointer);
                         }
@@ -873,6 +964,7 @@ namespace TransferAll
                         {
                             uiManager.ShowPopup(BuildInfo.Name, "Failed to move items", PopupType.Normal);
                         }
+
                         // Clear the temporary lists for the next Junk Stash.
                         tempItems.Clear();
                         tempGroups.Clear();
@@ -900,40 +992,106 @@ namespace TransferAll
             var gameManager = Singleton<GameManager>.Instance;
             var uiManager = UIManager.Get();
 
-            // Get a reference to the Temp Inventory.
-            var tempInv = gameManager.TempInventory;
             // Get a reference to all the objects of type Junk.
             var junks = UnityEngine.Object.FindObjectsOfType<Junk>();
-            // Setup a temporary count to show the user at the end.
-            int junkCount = 0;
+            // Setup a temporary count of junk to show the user at the end.
+            int junkTotalCount = 0;
             // Use this bool to verify that all the Junk was moved from all the Stashes.
             bool junkEmptied = true;
             // Loop through each Junk object and move the items and groups.
             // We are only getting the Junk lists, so a ForEach loop works here.
             foreach (var junk in junks)
             {
-                // Get the list of junk in the Stash.
-                var trashItems = junk.ItemsInTrash;
+                // Get the list of junk items/groups.
+                var junkItems = junk.ItemsInTrash;
                 // Store the number of junk in the Stash.
-                int trashCount = trashItems.Count;
-                // Use the standard For loop instead of ForEach,
-                // so the list isn't edited during the operation.
-                for (int i = 0; i < trashCount; i++)
+                int junkCount = junkItems.Count;
+                // Create a temporary list to hold the body part items.
+                Il2CppSystem.Collections.Generic.List<BaseItem> bodyParts =
+                    new Il2CppSystem.Collections.Generic.List<BaseItem>();
+                if (_configFile.TransferPartsOnlyAtBarnOrJunkyard)
                 {
-                    // Always get a reference to the first BaseItem in the list.
-                    var junkItem = trashItems[0];
-                    // Add the BaseItem to the Temp Inventory.
-                    tempInv.AddItem(junkItem);
-                    // Remove the first Item from the Junk Stash.
-                    trashItems.RemoveAt(0);
-                    // Increment the temporary count of items.
-                    junkCount++;
+                    // If the user has turned on the setting,
+                    // create a list of all the body parts in the stash.
+                    bodyParts = UIHelper.GetBodyItems(junkItems);
+                    // Subtract the number of body parts from junk parts.
+                    junkCount -= bodyParts.Count;
                 }
-                // The Stash should now be empty.
-                // If not, update the bool to fail at the end.
-                if (trashItems.Count > 0)
+                // Check if there is junk to move.
+                if (junkCount > 0)
                 {
-                    junkEmptied = false;
+
+                    // Create temporay lists to hold the items and group.
+                    List<Item> tempItems = new List<Item>();
+                    List<GroupItem> tempGroups = new List<GroupItem>();
+                    // We are only storing items, so a ForEach loop works here.
+                    foreach (var baseItem in junkItems)
+                    {
+                        if (_configFile.TransferPartsOnlyAtBarnOrJunkyard)
+                        {
+                            if (bodyParts.Contains(baseItem))
+                            {
+                                continue;
+                            }
+                        }
+                        // Try to cast the BaseItem to an Item.
+                        if (baseItem.TryCast<Item>() != null)
+                        {
+                            // The BaseItem is an Item, so add it to the correct list.
+                            tempItems.Add(baseItem.TryCast<Item>());
+                        }
+                        else if (baseItem.TryCast<GroupItem>() != null)
+                        {
+                            // The BaseItem is a GroupItem, so add it to the correct list.
+                            tempGroups.Add(baseItem.TryCast<GroupItem>());
+                        }
+                        junkTotalCount++;
+                    }
+                    // Check that all the items and groups were added to the temporary lists.
+                    if ((tempItems.Count + tempGroups.Count) == junkCount)
+                    {
+                        // Get a reference to the Temp Inventory.
+                        var tempInventory = gameManager.TempInventory;
+                        // We're using a temporary list, so ForEach loops work here.
+                        // We aren't editing the temporary list, just the Junk and Temp Inventory.
+                        if (tempItems.Count > 0)
+                        {
+                            foreach (var tempItem in tempItems)
+                            {
+                                // Add the Item to the Temp Inventory (Collected Tab).
+                                tempInventory.items.Add(tempItem);
+                                // Remove the Item from the Junk Stash.
+                                junk.ItemsInTrash.Remove(tempItem);
+                            }
+                        }
+                        // Add the temporary list to the Global Dictionaries.
+                        // This allows the user to "undo" the moves to each Junk Stash.
+                        _tempItems.Add(junk.Pointer, tempItems);
+
+                        // We're using a temporary list, so ForEach loops work here.
+                        // We aren't editing the temporary list, just the Junk and Temp Inventory.
+                        // *** The Barn and Junkyard don't seem to generate groups, ***
+                        // *** but we can't take that for granted in the future. ***
+                        if (tempGroups.Count > 0)
+                        {
+                            foreach (var tempGroup in tempGroups)
+                            {
+                                // Add the Group to the Temp Inventory (Collected Tab).
+                                tempInventory.items.Add(tempGroup);
+                                // Remove the Group from the Junk Stash.
+                                junk.ItemsInTrash.Remove(tempGroup);
+                            }
+                        }
+                        // Add the temporary list to the Global Dictionaries.
+                        // This allows the user to "undo" the moves to each Junk Stash.
+                        _tempGroups.Add(junk.Pointer, tempGroups);
+                    }
+                    // Something went wrong with the temporary moves,
+                    // so show the user a message.
+                    else
+                    {
+                        junkEmptied = false;
+                    }
                 }
             }
             // One of the Stashes was not emptied, so show the user a message.
@@ -942,9 +1100,13 @@ namespace TransferAll
                 uiManager.ShowPopup(BuildInfo.Name, "Failed to empty a junk pile.", PopupType.Normal);
             }
             // Show the user the number of items and groups that were moved.
-            if (junkCount > 0)
+            if (junkTotalCount > 0)
             {
-                uiManager.ShowPopup(BuildInfo.Name, $"Junk items moved: {junkCount}.", PopupType.Normal);
+                uiManager.ShowPopup(BuildInfo.Name, $"Junk items moved: {junkTotalCount}.", PopupType.Normal);
+            }
+            else
+            {
+                uiManager.ShowPopup(BuildInfo.Name, $"No Junk items to move.", PopupType.Normal);
             }
         }
     }

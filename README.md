@@ -1,28 +1,35 @@
-# TRANSFER ALL - 1.1.0
+# TRANSFER ALL - 1.2.0
 Mod to automatically transfer all parts from your Inventory to the Warehouse.
 Also, works in the Barn and Junkyard; including automatically moving all junk to the shopping cart.
 
-## UPDATE 1.1.0
-* Added the option (in TransferAll.cfg) to move only the items in the selected category while in the Inventory or Warehouse.
+## UPDATE 1.2.0
+* Fixed a bug: When the Search box is active the default keys still enact the mod (this shouldn't happen).
+* Fixed a bug: The confirmation box on the Warehouse Tab did not allow the user to cancel the move.
+* Added the option (in TransferAll.cfg) to move only non-body part items at the Barn or Junkyard.
+* Updated the default TransferAllItemsAndGroups key to 'K' so it doesn't conflict with the Remote Control Lifts mod.
+* ** Updated key will not change if TransferAll.cfg already exists. Delete it or manually change the assignment. **
+* The TransferAllItemsAndGroups (K) key now moves items back to the Junk stashes if you used the TransferEntireJunkyardOrBarn (L) key.
+* ** You must be on the Shopping Cart tab to move items back. This only moves the original items back to the stash. **
 
 ## REQUIREMENTS
 * [MelonLoader 0.5.7](https://github.com/LavaGang/MelonLoader/releases/tag/v0.5.7)
 
 ## FEATURES
-* This mod allows the user to move all items in their Inventory to the selected Warehouse with one press of a key (P).
-* When viewing a Junk stash in the Barn or Junkyard, the same key (P) will move all the Junk to the Shopping Cart/Summary screen.
+* This mod allows the user to move all items in their Inventory to the selected Warehouse with one press of a key (K).
+* When viewing a Junk stash in the Barn or Junkyard, the same key (K) will move all the Junk to the Shopping Cart/Summary screen.
 * The user can also press a different key (L) and move all the Junk stashes from the Barn or Junkyard to the Shopping Cart/Summary screen.
 * You still have to pay for the items at the Barn or Junkyard.
 
 ## DEFAULT KEYS
-* P: Move all items from Inventory/Warehouse/Junk/Cart tab to opposite tab in Inventory screens.
+* K: Move all items from Inventory/Warehouse/Junk/Cart tab to opposite tab in Inventory screens.
 * L: ONLY WORKS IN BARN AND JUNKYARD. Move all the Junk from all the stashes to the Shopping Cart/Summary screen.
 
 ## DEFAULT SETTINGS (TransferAll.cfg)
-* TransferAllItemsAndGroups: P
+* TransferAllItemsAndGroups: K
 * TransferEntireJunkyardOrBarn: L
 * MinNumOfItemsWarning: 500
 * TransferByCategory: false
+* TransferPartsOnlyAtBarnOrJunkyard: false
 - [Keycode Values](https://docs.unity3d.com/ScriptReference/KeyCode.html)
 
 ## INSTALLATION (Same as all other MelonLoader mods)
@@ -32,7 +39,7 @@ Also, works in the Barn and Junkyard; including automatically moving all junk to
 - Default Folder: \SteamLibrary\steamapps\common\Car Mechanic Simulator 2021\Mods\
 
 ## KNOWN ISSUES
-* None as of now.
+* View [Issues Section](https://github.com/mannly01/TransferAll/issues)
 
 ## CREDITS
 Thanks to the following developers for sharing their source code (in no particular order):
