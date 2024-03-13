@@ -1,15 +1,6 @@
-# TRANSFER ALL - 1.2.0
+# TRANSFER ALL - 1.3.0
 Mod to automatically transfer all parts from your Inventory to the Warehouse.
 Also, works in the Barn and Junkyard; including automatically moving all junk to the shopping cart.
-
-## UPDATE 1.2.0
-* Fixed a bug: When the Search box is active the default keys still enact the mod (this shouldn't happen).
-* Fixed a bug: The confirmation box on the Warehouse Tab did not allow the user to cancel the move.
-* Added the option (in TransferAll.cfg) to move only non-body part items at the Barn or Junkyard.
-* Updated the default TransferAllItemsAndGroups key to 'K' so it doesn't conflict with the Remote Control Lifts mod.
-* ** Updated key will not change if TransferAll.cfg already exists. Delete it or manually change the assignment. **
-* The TransferAllItemsAndGroups (K) key now moves items back to the Junk stashes if you used the TransferEntireJunkyardOrBarn (L) key.
-* ** You must be on the Shopping Cart tab to move items back. This only moves the original items back to the stash. **
 
 ## REQUIREMENTS
 * [MelonLoader 0.5.7](https://github.com/LavaGang/MelonLoader/releases/tag/v0.5.7)
@@ -20,16 +11,26 @@ Also, works in the Barn and Junkyard; including automatically moving all junk to
 * The user can also press a different key (L) and move all the Junk stashes from the Barn or Junkyard to the Shopping Cart/Summary screen.
 * You still have to pay for the items at the Barn or Junkyard.
 
+## UPDATE 1.3.0
+* Fixed a bug: Barn/Junkyard Inventory and Stash windows aren't updated after TransferEntireJunkyardOrBarn key is pressed.
+* Fixed a bug: Object reference not set when TransferAllItemsAndGroups key is pressed on an empty Shopping Cart tab.
+* Added the option (in TransferAll.cfg) to move only maps or cases to The Shopping Cart at the Barn/Junkyard.
+* ** THIS OVERRIDES THE TransferPartsOnlyAtBarnOrJunkyard SETTING. **
+* Updated the TransferEntireJunkyardOrBarn (L) key to work while on the Shopping Cart tab. This will move all the junk into the current junk stash.
+* Changed the TransferByCategory setting to default to true.
+* ** Updated setting will not change if TransferAll.cfg already exists. Delete it or manually change the assignment. **
+
 ## DEFAULT KEYS
 * K: Move all items from Inventory/Warehouse/Junk/Cart tab to opposite tab in Inventory screens.
-* L: ONLY WORKS IN BARN AND JUNKYARD. Move all the Junk from all the stashes to the Shopping Cart/Summary screen.
+* L: ONLY WORKS IN BARN AND JUNKYARD. Move all the Junk from all the stashes to the Shopping Cart/Summary screen (works in reverse now).
 
 ## DEFAULT SETTINGS (TransferAll.cfg)
 * TransferAllItemsAndGroups: K
 * TransferEntireJunkyardOrBarn: L
 * MinNumOfItemsWarning: 500
-* TransferByCategory: false
+* TransferByCategory: true
 * TransferPartsOnlyAtBarnOrJunkyard: false
+* TransferMapsOrCasesOnlyAtBarnOrJunkyard: false
 - [Keycode Values](https://docs.unity3d.com/ScriptReference/KeyCode.html)
 
 ## INSTALLATION (Same as all other MelonLoader mods)
