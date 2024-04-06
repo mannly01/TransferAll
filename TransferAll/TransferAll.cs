@@ -22,7 +22,7 @@ namespace TransferAll
         public const string Description = "Mod to automatically transfer all parts from your Inventory to the Warehouse. Also, works in the Barn and Junkyard; including automatically moving all junk to the shopping cart.";
         public const string Author = "mannly82";
         public const string Company = "The Mann Design";
-        public const string Version = "1.3.0";
+        public const string Version = "1.3.1";
         public const string DownloadLink = "https://www.nexusmods.com/carmechanicsimulator2021/mods/174";
         public const string MelonGameCompany = "Red Dot Games";
         public const string MelonGameName = "Car Mechanic Simulator 2021";
@@ -75,7 +75,7 @@ namespace TransferAll
         public ConfigFile()
         {
             _settings = MelonPreferences.CreateCategory(SettingsCatName);
-            _settings.SetFilePath($"Mods/TransferAll.cfg");
+            _settings.SetFilePath("Mods/TransferAll.cfg");
             _transferAllBindKey = _settings.CreateEntry(nameof(TransferAllItemsAndGroups), KeyCode.K, 
                 description: "Press This Key to transfer all current items and groups.");
             _transferEntireBindKey = _settings.CreateEntry(nameof(TransferEntireJunkyardOrBarn), KeyCode.L,
@@ -139,7 +139,7 @@ namespace TransferAll
         public override void OnInitializeMelon()
         {
             // Tell the user that we're loading the Settings.
-            MelonLogger.Msg("Loading Configuration...");
+            MelonLogger.Msg("Loading Settings...");
             _configFile = new ConfigFile();
         }
 
@@ -188,6 +188,12 @@ namespace TransferAll
         {
             // Save a reference to the current scene.
             _currentScene = sceneName.ToLower();
+            if (_currentScene.Equals("christmas") ||
+                _currentScene.Equals("easter") ||
+                _currentScene.Equals("halloween"))
+            {
+                _currentScene = "garage";
+            }
         }
         public override void OnSceneWasUnloaded(int buildIndex, string sceneName)
         {
@@ -202,6 +208,16 @@ namespace TransferAll
 
         public override void OnUpdate()
         {
+            // This is a test key that should not be shipped with a release.
+            //if (Input.GetKeyDown(KeyCode.J))
+            //{
+            //    // These are debug/test methods.
+            //    //ShowSceneName();
+            //    //ShowWindowName();
+            //    //ShowCurrentCategory();
+            //    //ShowMapsAndCases();
+            //}
+
             // Only work on these scenes.
             if (_currentScene.Equals("garage") ||
                 _currentScene.Equals("barn") ||
@@ -227,16 +243,6 @@ namespace TransferAll
                         }
                     }
                 }
-
-                // This is a test key that should not be shipped with a release.
-                //if (Input.GetKeyDown(KeyCode.J))
-                //{
-                //    // These are debug/test methods.
-                //    //ShowSceneName();
-                //    //ShowWindowName();
-                //    //ShowCurrentCategory();
-                //    //ShowMapsAndCases();
-                //}
 
                 // Check if the user pressed the TransferAllItemsAndGroups Key in Settings.
                 if (Input.GetKeyDown(_configFile.TransferAllItemsAndGroups))
@@ -562,17 +568,20 @@ namespace TransferAll
         /// <param name="reset">(True) if we are setting the values back to original.</param>
         private void ToggleQoLSettings(bool reset = false)
         {
-            bool tempGroupAdded = false;
-            bool tempAllPartsAdded = false;
-            if (reset)
+            if (File.Exists(_qolPath))
             {
-                tempGroupAdded = _qolGroupAddedPopup;
-                tempAllPartsAdded = _qolAllPartsPopup;
+                bool tempGroupAdded = false;
+                bool tempAllPartsAdded = false;
+                if (reset)
+                {
+                    tempGroupAdded = _qolGroupAddedPopup;
+                    tempAllPartsAdded = _qolAllPartsPopup;
+                }
+
+                dynamic settingsValue = _qolSettings.GetValue(null);
+                settingsValue.Value.showPopupforGroupAddedInventory = tempGroupAdded;
+                settingsValue.Value.showPopupforAllPartsinGroup = tempAllPartsAdded;
             }
-            
-            dynamic settingsValue = _qolSettings.GetValue(null);
-            settingsValue.Value.showPopupforGroupAddedInventory = tempGroupAdded;
-            settingsValue.Value.showPopupforAllPartsinGroup = tempAllPartsAdded;
 
             // DEBUG Information
             //MelonLogger.Msg($"QoLmod Found, showPopupforGroupAddedInventory: {settingsValue.Value.showPopupforGroupAddedInventory}");

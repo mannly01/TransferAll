@@ -1,4 +1,4 @@
-# TRANSFER ALL - 1.3.0
+# TRANSFER ALL - 1.3.1
 Mod to automatically transfer all parts from your Inventory to the Warehouse.
 Also, works in the Barn and Junkyard; including automatically moving all junk to the shopping cart.
 
@@ -11,14 +11,9 @@ Also, works in the Barn and Junkyard; including automatically moving all junk to
 * The user can also press a different key (L) and move all the Junk stashes from the Barn or Junkyard to the Shopping Cart/Summary screen.
 * You still have to pay for the items at the Barn or Junkyard.
 
-## UPDATE 1.3.0
-* Fixed a bug: Barn/Junkyard Inventory and Stash windows aren't updated after TransferEntireJunkyardOrBarn key is pressed.
-* Fixed a bug: Object reference not set when TransferAllItemsAndGroups key is pressed on an empty Shopping Cart tab.
-* Added the option (in TransferAll.cfg) to move only maps or cases to The Shopping Cart at the Barn/Junkyard.
-* ** THIS OVERRIDES THE TransferPartsOnlyAtBarnOrJunkyard SETTING. **
-* Updated the TransferEntireJunkyardOrBarn (L) key to work while on the Shopping Cart tab. This will move all the junk into the current junk stash.
-* Changed the TransferByCategory setting to default to true.
-* ** Updated setting will not change if TransferAll.cfg already exists. Delete it or manually change the assignment. **
+## UPDATE 1.3.1
+* Fixed a bug: Holiday names were renaming the Garage and the mod no longer functioned.
+* Fixed a bug: This mod adjusts QoLmod settings (if present), but shouldn't have required it. That is now the case.
 
 ## DEFAULT KEYS
 * K: Move all items from Inventory/Warehouse/Junk/Cart tab to opposite tab in Inventory screens.
