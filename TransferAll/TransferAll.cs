@@ -22,7 +22,7 @@ namespace TransferAll
         public const string Description = "Mod to automatically transfer all parts from your Inventory to the Warehouse. Also, works in the Barn and Junkyard; including automatically moving all junk to the shopping cart.";
         public const string Author = "mannly82";
         public const string Company = "The Mann Design";
-        public const string Version = "1.3.1";
+        public const string Version = "1.4.0";
         public const string DownloadLink = "https://www.nexusmods.com/carmechanicsimulator2021/mods/174";
         public const string MelonGameCompany = "Red Dot Games";
         public const string MelonGameName = "Car Mechanic Simulator 2021";
@@ -48,6 +48,25 @@ namespace TransferAll
         /// </summary>
         public KeyCode TransferEntireJunkyardOrBarn => _transferEntireBindKey.Value;
         private readonly MelonPreferences_Entry<KeyCode> _transferEntireBindKey;
+        /// <summary>
+        /// User setting for the key to set the condition of parts percentage lower by 10%.
+        /// </summary>
+        public KeyCode SetPartConditionLower => _setPartConditionLower.Value;
+        private readonly MelonPreferences_Entry<KeyCode> _setPartConditionLower;
+        /// <summary>
+        /// User setting for the key to set the condition of parts percentage higher by 10%.
+        /// </summary>
+        public KeyCode SetPartConditionHigher => _setPartConditionHigher.Value;
+        private readonly MelonPreferences_Entry<KeyCode> _setPartConditionHigher;
+        /// <summary>
+        /// User setting for the minimum part condition to transfer.
+        /// </summary>
+        public int MinPartCondition
+        {
+            get => _minPartCondition.Value;
+            set { _minPartCondition.Value = value; }
+        }
+        private readonly MelonPreferences_Entry<int> _minPartCondition;
         /// <summary>
         /// User setting for the minimum number of items to show a warning message before transfer.
         /// </summary>
@@ -80,10 +99,16 @@ namespace TransferAll
                 description: "Press This Key to transfer all current items and groups.");
             _transferEntireBindKey = _settings.CreateEntry(nameof(TransferEntireJunkyardOrBarn), KeyCode.L,
                 description: "ONLY WORKS AT BARN AND JUNKYARD." + Il2CppSystem.Environment.NewLine + "Press This Key to transfer all items and groups from ALL junk stashes.");
+            _setPartConditionLower = _settings.CreateEntry(nameof(SetPartConditionLower), KeyCode.Minus,
+                description: "Press This Key to set the condition percentage lower by 10%." + Il2CppSystem.Environment.NewLine + "This value is saved to MinPartCondition value below on exit.");
+            _setPartConditionHigher = _settings.CreateEntry(nameof(SetPartConditionHigher), KeyCode.Equals,
+                description: "Press This Key to set the condition percentage higher by 10%." + Il2CppSystem.Environment.NewLine + "This value is saved to MinPartCondition value below on exit.");
+            _minPartCondition = _settings.CreateEntry(nameof(MinPartCondition), 0,
+                description: "This value will transfer parts with a condition equal to and above this number. SET TO 0 TO TRANSFER EVERYTHING.");
             _minNumOfItemsWarning = _settings.CreateEntry(nameof(MinNumOfItemsWarning), 500,
                 description: "This will display a warning if the items/groups are above this number (to prevent large moves by accident).");
             _transferByCategory = _settings.CreateEntry(nameof(TransferByCategory), true,
-                description: "Set this to true and the TransferAllItemsAndGroups key will only move items in the selected category (engine, suspension, etc.).");
+                description: "Set this to false and the TransferAllItemsAndGroups key will move all items regardless of the selected category (engine, suspension, etc.).");
             _transferPartsOnlyAtBarnOrJunkyard = _settings.CreateEntry(nameof(TransferPartsOnlyAtBarnOrJunkyard), false,
                 description: "Set this to true and only non-body parts are moved to the Shopping Cart in the Barn/Junkyard.");
             _transferMapsOrCasesOnlyAtBarnOrJunkyard = _settings.CreateEntry(nameof(TransferMapsOrCasesOnlyAtBarnOrJunkyard), false,
@@ -92,6 +117,29 @@ namespace TransferAll
             // Remove the old configuration if it's still there.
             _settings.DeleteEntry("TransferAllItemsAndGroupsLeftControlPlus");
             _settings.DeleteEntry("TransferEntireJunkyardOrBarnLeftAltPlus");
+        }
+
+        /// <summary>
+        /// Method to change the MinPartCondition setting lower by 10%.
+        /// </summary>
+        public void SetPartConditionLowerBy10()
+        {
+            MinPartCondition -= 10;
+            if (MinPartCondition < 0)
+            {
+                MinPartCondition = 0;
+            }
+        }
+        /// <summary>
+        /// Method to change the MinPartCondition setting higher by 10%.
+        /// </summary>
+        public void SetPartConditionHigherBy10()
+        {
+            MinPartCondition += 10;
+            if (MinPartCondition > 100)
+            {
+                MinPartCondition = 100;
+            }
         }
     }
 
@@ -106,10 +154,6 @@ namespace TransferAll
         /// Global reference to the current scene.
         /// </summary>
         private string _currentScene = string.Empty;
-        /// <summary>
-        /// Global reference to verify if a tutorial is visible.
-        /// </summary>
-        private bool _myTutorialEnabled = false;
         /// <summary>
         /// Global reference to verify if the Warehouse Expansion is unlocked.
         /// </summary>
@@ -188,6 +232,7 @@ namespace TransferAll
         {
             // Save a reference to the current scene.
             _currentScene = sceneName.ToLower();
+            // Change the scene name if a holiday is happening.
             if (_currentScene.Equals("christmas") ||
                 _currentScene.Equals("easter") ||
                 _currentScene.Equals("halloween"))
@@ -206,44 +251,53 @@ namespace TransferAll
             }
         }
 
+        public override void OnDeinitializeMelon()
+        {
+            // If this mod has an error, make sure the QoLmod settings
+            // are still returned to their original values.
+            ToggleQoLSettings(reset: true);
+        }
+
         public override void OnUpdate()
         {
             // This is a test key that should not be shipped with a release.
-            //if (Input.GetKeyDown(KeyCode.J))
-            //{
-            //    // These are debug/test methods.
-            //    //ShowSceneName();
-            //    //ShowWindowName();
-            //    //ShowCurrentCategory();
-            //    //ShowMapsAndCases();
-            //}
+#if DEBUG
+            if (Input.GetKeyDown(KeyCode.J))
+            {
+                // These are debug/test methods.
+                //ShowSceneName();
+                //ShowWindowName();
+                //ShowCurrentCategory();
+                //ShowMapsAndCases();
+
+                // Used to debug an error in the mod.
+                // This will cause a failure if the Warehouse window isn't open.
+                //var warehouseWindow = Singleton<WindowManager>.Instance.GetWindowByID<WarehouseWindow>(WindowID.Warehouse);
+                //var warehouseTab = warehouseWindow.warehouseTab;
+                //warehouseTab.Refresh();
+            }
+#endif
+
+            // This key will set the MinPartCondition value lower by 10%
+            // and then show the user the current value.
+            if (Input.GetKeyDown(_configFile.SetPartConditionLower))
+            {
+                _configFile.SetPartConditionLowerBy10();
+                UIManager.Get().ShowPopup(BuildInfo.Name, $"Transfer Part Condition: {_configFile.MinPartCondition}%", PopupType.Normal);
+            }
+            // This key will set the MinPartCondition value higher by 10%
+            // and then show the user the current value.
+            if (Input.GetKeyDown(_configFile.SetPartConditionHigher))
+            {
+                _configFile.SetPartConditionHigherBy10();
+                UIManager.Get().ShowPopup(BuildInfo.Name, $"Transfer Part Condition: {_configFile.MinPartCondition}%", PopupType.Normal);
+            }
 
             // Only work on these scenes.
             if (_currentScene.Equals("garage") ||
                 _currentScene.Equals("barn") ||
                 _currentScene.Equals("junkyard"))
             {
-                // Check if the Tutorial Message is enabled,
-                // otherwise, move on (this should improve performance).
-                if (_myTutorialEnabled)
-                {
-                    var windowManager = WindowManager.Instance;
-                    if (windowManager != null)
-                    {
-                        if (windowManager.activeWindows.count > 0)
-                        {
-                            // Check if the current window is the Warehouse or Barn/Junkyard window.
-                            if (windowManager.IsWindowActive(WindowID.Warehouse) ||
-                                windowManager.IsWindowActive(WindowID.ItemsExchange))
-                            {
-                                // Close the Tutorial Message if it's open
-                                UIManager.Get().PopupManager.HideTutorial();
-                                _myTutorialEnabled = false;
-                            }
-                        }
-                    }
-                }
-
                 // Check if the user pressed the TransferAllItemsAndGroups Key in Settings.
                 if (Input.GetKeyDown(_configFile.TransferAllItemsAndGroups))
                 {
@@ -302,6 +356,7 @@ namespace TransferAll
             }
         }
 
+#if DEBUG
         /// <summary>
         /// Debug method to show the current scene.
         /// </summary>
@@ -474,6 +529,7 @@ namespace TransferAll
             }
         }
 
+#endif
         /// <summary>
         /// This mod only works if the Warehouse has been unlocked
         /// as an Expansion, so check if it has been unlocked.
@@ -523,46 +579,6 @@ namespace TransferAll
         }
 
         /// <summary>
-        /// If the user tries to use the mod in the wrong place,
-        /// show a Tutorial message to explain how to use it correctly.
-        /// </summary>
-        /// <remarks>
-        /// (I hate when you press a button and nothing happens and
-        /// you don't know if the code failed or you used it wrong).
-        /// </remarks>
-        /// <param name="isWarehouse">(True) if the user is at the Garage.</param>
-        private void ShowTutorialMessage(bool isWarehouse)
-        {
-            // Create a message depending on the location.
-            string message;
-            if (isWarehouse)
-            {
-                message = "Please open the Warehouse first.";
-            }
-            else
-            {
-                message = "Please open a junk pile first.";
-            }
-
-            var uiManager = UIManager.Get();
-            if (!uiManager.PopupManager.PopupTutorial.isActiveAndEnabled)
-            {
-                // Show the Tutorial.
-                uiManager.ShowPopup(BuildInfo.Name, message, PopupType.Tutorial);
-                // Keep track of our Tutorial in case another one gets activated.
-                _myTutorialEnabled = true;
-            }
-            else
-            {
-                // Only close our Tutorial.
-                if (!_myTutorialEnabled)
-                {
-                    uiManager.ShowPopup(BuildInfo.Name, message, PopupType.Normal);
-                }
-            }
-        }
-
-        /// <summary>
         /// Used to Toggle the QoLmod settings temporarily.
         /// </summary>
         /// <param name="reset">(True) if we are setting the values back to original.</param>
@@ -581,11 +597,12 @@ namespace TransferAll
                 dynamic settingsValue = _qolSettings.GetValue(null);
                 settingsValue.Value.showPopupforGroupAddedInventory = tempGroupAdded;
                 settingsValue.Value.showPopupforAllPartsinGroup = tempAllPartsAdded;
-            }
 
-            // DEBUG Information
-            //MelonLogger.Msg($"QoLmod Found, showPopupforGroupAddedInventory: {settingsValue.Value.showPopupforGroupAddedInventory}");
-            //MelonLogger.Msg($"QoLmod Found, showPopupforAllPartsinGroup: {settingsValue.Value.showPopupforAllPartsinGroup}");
+#if DEBUG
+                MelonLogger.Msg($"QoLmod Found, showPopupforGroupAddedInventory: {settingsValue.Value.showPopupforGroupAddedInventory}");
+                MelonLogger.Msg($"QoLmod Found, showPopupforAllPartsinGroup: {settingsValue.Value.showPopupforAllPartsinGroup}");
+#endif
+            }
         }
 
         /// <summary>
@@ -602,47 +619,44 @@ namespace TransferAll
             // Disable QoLmod settings temporarily.
             ToggleQoLSettings();
 
-            // Get the number of BaseItems in the Inventory list.
-            int invCount = invItems.Count;
             // Setup temporary counts to return at the end.
             int invItemCount = 0;
             int invGroupCount = 0;
             // Use the standard For loop instead of ForEach
             // so the list isn't edited during the operation.
-            for (int i = 0; i < invCount; i++)
+            for (int i = 0; i < invItems.Count; i++)
             {
-                // Always get a reference to the first BaseItem in the list.
-                var baseItem = invItems[0];
-                // Try to cast the BaseItem to an Item.
-                if (baseItem.TryCast<Item>() != null)
+                // Get a reference to the BaseItem in the list.
+                var baseItem = invItems[i];
+                if (i == 0)
                 {
-                    // The BaseItem is an Item, so add it to the current Warehouse.
-                    warehouse.Add(baseItem.TryCast<Item>());
-                    // Delete the Item from the Inventory.
-                    inventory.Delete(baseItem.TryCast<Item>());
-                    // Remove the BaseItem from the temporary list.
-                    invItems.RemoveAt(0);
-                    // Increment the temporary count of items.
-                    invItemCount++;
+                    MelonLogger.Msg($"Part Condition: {baseItem.GetCondition()}");
                 }
-                // Try to cast the BaseItem to a GroupItem.
-                if (baseItem.TryCast<GroupItem>() != null)
+                // Check if the condition of the part is
+                // greater than or equal to the user setting.
+                if ((baseItem.GetCondition() * 100) >= _configFile.MinPartCondition)
                 {
-                    // The BaseItem is a GroupItem, so add it to the current Warehouse.
-                    warehouse.Add(baseItem.TryCast<GroupItem>());
-                    // Delete the GroupItem from the Warehouse.
-                    inventory.DeleteGroup(baseItem.UID);
-                    // Remove the BaseItem from the temporary list.
-                    invItems.RemoveAt(0);
-                    // Increment the temporary count of groups.
-                    invGroupCount++;
+                    // Try to cast the BaseItem to an Item.
+                    if (baseItem.TryCast<Item>() != null)
+                    {
+                        // The BaseItem is an Item, so add it to the current Warehouse.
+                        warehouse.Add(baseItem.TryCast<Item>());
+                        // Delete the Item from the Inventory.
+                        inventory.Delete(baseItem.TryCast<Item>());
+                        // Increment the temporary count of items.
+                        invItemCount++;
+                    }
+                    // Try to cast the BaseItem to a GroupItem.
+                    if (baseItem.TryCast<GroupItem>() != null)
+                    {
+                        // The BaseItem is a GroupItem, so add it to the current Warehouse.
+                        warehouse.Add(baseItem.TryCast<GroupItem>());
+                        // Delete the GroupItem from the Inventory.
+                        inventory.DeleteGroup(baseItem.UID);
+                        // Increment the temporary count of groups.
+                        invGroupCount++;
+                    }
                 }
-            }
-            // The Inventory should now be empty.
-            // If not, show the user a message.
-            if (invItems.Count > 0)
-            {
-                UIManager.Get().ShowPopup(BuildInfo.Name, "Failed to move items from Inventory", PopupType.Normal);
             }
 
             // Reset the QoLmod settings.
@@ -665,47 +679,40 @@ namespace TransferAll
             // Disable QoLmod settings temporarily.
             ToggleQoLSettings();
 
-            // Get the nummber of total BaseItems in the Warehouse.
-            int wareCount = warehouseItems.Count;
             // Setup temporary counts to return at the end.
             int wareItemCount = 0;
             int wareGroupCount = 0;
             // Use the standard For loop instead of ForEach,
             // so the list isn't edited during the operation.
-            for (int i = 0; i < wareCount; i++)
+            for (int i = 0; i < warehouseItems.Count; i++)
             {
-                // Always get a reference to the first BaseItem in the list.
-                var baseItem = warehouseItems[0];
-                // Try to cast the BaseItem to an Item.
-                if (baseItem.TryCast<Item>() != null)
+                // Get a reference to the BaseItem in the list.
+                var baseItem = warehouseItems[i];
+                // Check if the condition of the part is
+                // greater than or equal to the user setting.
+                if ((baseItem.GetCondition() * 100) >= _configFile.MinPartCondition)
                 {
-                    // The BaseItem is an Item, so add it to the user's Inventory.
-                    inventory.Add(baseItem.TryCast<Item>());
-                    // Delete the Item from the Warehouse.
-                    warehouse.Delete(baseItem.TryCast<Item>());
-                    // Remove the BaseItem from the temporary list.
-                    warehouseItems.RemoveAt(0);
-                    // Increment the temporary count of items.
-                    wareItemCount++;
+                    // Try to cast the BaseItem to an Item.
+                    if (baseItem.TryCast<Item>() != null)
+                    {
+                        // The BaseItem is an Item, so add it to the user's Inventory.
+                        inventory.Add(baseItem.TryCast<Item>());
+                        // Delete the Item from the Warehouse.
+                        warehouse.Delete(baseItem.TryCast<Item>());
+                        // Increment the temporary count of items.
+                        wareItemCount++;
+                    }
+                    // Try to cast the BaseItem to a GroupItem.
+                    if (baseItem.TryCast<GroupItem>() != null)
+                    {
+                        // The BaseItem is a GroupItem, so add it to the user's Inventory.
+                        inventory.AddGroup(baseItem.TryCast<GroupItem>());
+                        // Delete the GroupItem from the Warehouse.
+                        warehouse.Delete(baseItem.TryCast<GroupItem>());
+                        // Increment the temporary count of groups.
+                        wareGroupCount++;
+                    }
                 }
-                // Try to cast the BaseItem to a GroupItem.
-                if (baseItem.TryCast<GroupItem>() != null)
-                {
-                    // The BaseItem is a GroupItem, so add it to the user's Inventory.
-                    inventory.AddGroup(baseItem.TryCast<GroupItem>());
-                    // Delete the GroupItem from the Warehouse.
-                    warehouse.Delete(baseItem.TryCast<GroupItem>());
-                    // Remove the BaseItem from the temporary list.
-                    warehouseItems.RemoveAt(0);
-                    // Increment the temporary count of groups.
-                    wareGroupCount++;
-                }
-            }
-            // The Warehouse should now be empty.
-            // If not, show the user a message.
-            if (warehouseItems.Count > 0)
-            {
-                UIManager.Get().ShowPopup(BuildInfo.Name, "Failed to move items from Warehouse", PopupType.Normal);
             }
 
             // Reset the QoLmod settings.
@@ -778,7 +785,12 @@ namespace TransferAll
                                         category = $" {warehouseWindow.warehouseInventoryTab.currentCategory}";
                                     }
                                 }
-                                uiManager.ShowAskWindow("Move Items", $"Move all{category} items in inventory to {warehouse.GetCurrentSelectedWarehouseName()}?", confirmMove);
+                                string condition = string.Empty;
+                                if (_configFile.MinPartCondition > 0)
+                                {
+                                    condition = $" above {_configFile.MinPartCondition - 1}%";
+                                }
+                                uiManager.ShowAskWindow("Move Items", $"Move all{category} items{condition} in inventory to {warehouse.GetCurrentSelectedWarehouseName()}?", confirmMove);
                             }
                             else
                             {
@@ -843,7 +855,12 @@ namespace TransferAll
                                         category = $" {warehouseWindow.warehouseTab.currentCategory}";
                                     }
                                 }
-                                uiManager.ShowAskWindow("Move Items", $"Move all{category} items in {warehouse.GetCurrentSelectedWarehouseName()} to your Inventory?", confirmMove);
+                                string condition = string.Empty;
+                                if (_configFile.MinPartCondition > 0)
+                                {
+                                    condition = $" above {_configFile.MinPartCondition - 1}%";
+                                }
+                                uiManager.ShowAskWindow("Move Items", $"Move all{category} items{condition} in {warehouse.GetCurrentSelectedWarehouseName()} to your Inventory?", confirmMove);
                             }
                             else
                             {
@@ -869,7 +886,7 @@ namespace TransferAll
             // so show the user a Tutorial message.
             else
             {
-                ShowTutorialMessage(isWarehouse: true);
+                uiManager.ShowPopup(BuildInfo.Name, "Please open the Warehouse first.", PopupType.Normal);
             }
         }
 
@@ -908,7 +925,9 @@ namespace TransferAll
                         var junkItems = junk.ItemsInTrash;
                         // Store the number of junk in the Stash.
                         int junkCount = junkItems.Count;
-                        //MelonLogger.Msg($"# of Junk Parts: {junkCount}");
+#if DEBUG
+                        MelonLogger.Msg($"# of Junk Parts: {junkCount}");
+#endif
                         // Create a temporary list to hold the body part items.
                         Il2CppSystem.Collections.Generic.List<BaseItem> bodyParts =
                             new Il2CppSystem.Collections.Generic.List<BaseItem>();
@@ -919,8 +938,10 @@ namespace TransferAll
                             bodyParts = UIHelper.GetBodyItems(junkItems);
                             // Subtract the number of body parts from junk parts.
                             junkCount -= bodyParts.Count;
-                            //MelonLogger.Msg($"# of Body Parts: {bodyParts.Count}");
-                            //MelonLogger.Msg($"# of Junk Parts: {junkCount}");
+#if DEBUG
+                            MelonLogger.Msg($"# of Body Parts: {bodyParts.Count}");
+                            MelonLogger.Msg($"# of Junk Parts: {junkCount}");
+#endif
                         }
                         // Check if there is junk to move.
                         if (junkCount > 0)
@@ -939,16 +960,25 @@ namespace TransferAll
                                         continue;
                                     }
                                 }
-                                // Try to cast the BaseItem to an Item.
-                                if (baseItem.TryCast<Item>() != null)
+                                // Check if the condition of the part is
+                                // greater than or equal to the user setting.
+                                if ((baseItem.GetCondition() * 100) >= _configFile.MinPartCondition)
                                 {
-                                    // The BaseItem is an Item, so add it to the correct list.
-                                    tempItems.Add(baseItem.TryCast<Item>());
+                                    // Try to cast the BaseItem to an Item.
+                                    if (baseItem.TryCast<Item>() != null)
+                                    {
+                                        // The BaseItem is an Item, so add it to the correct list.
+                                        tempItems.Add(baseItem.TryCast<Item>());
+                                    }
+                                    else if (baseItem.TryCast<GroupItem>() != null)
+                                    {
+                                        // The BaseItem is a GroupItem, so add it to the correct list.
+                                        tempGroups.Add(baseItem.TryCast<GroupItem>());
+                                    }
                                 }
-                                else if (baseItem.TryCast<GroupItem>() != null)
+                                else
                                 {
-                                    // The BaseItem is a GroupItem, so add it to the correct list.
-                                    tempGroups.Add(baseItem.TryCast<GroupItem>());
+                                    junkCount -= 1;
                                 }
                             }
                             // Check that all the items and groups were added to the temporary lists.
@@ -967,13 +997,22 @@ namespace TransferAll
                                         // Remove the Item from the Junk Stash.
                                         junk.ItemsInTrash.Remove(tempItem);
                                     }
-
-                                    // Show the user the number of items that were moved.
-                                    uiManager.ShowPopup(BuildInfo.Name, $"Items Moved From Junk: {tempItems.Count}", PopupType.Normal);
                                 }
                                 // Add the temporary list to the Global Dictionaries.
                                 // This allows the user to "undo" the moves to each Junk Stash.
-                                _tempItems.Add(junk.Pointer, tempItems);
+                                // Check if the temporary list is already in the Global Dictionary.
+                                if (_tempItems.ContainsKey(junk.Pointer))
+                                {
+                                    // Add the new items to the list.
+                                    var globalItems = _tempItems[junk.Pointer];
+                                    globalItems.AddRange(tempItems);
+                                    // Replace the Global List with the updated one.
+                                    _tempItems[junk.Pointer] = globalItems;
+                                }
+                                else
+                                {
+                                    _tempItems.Add(junk.Pointer, tempItems);
+                                }
 
                                 // We're using a temporary list, so ForEach loops work here.
                                 // We aren't editing the temporary list, just the Junk and Temp Inventory.
@@ -988,13 +1027,27 @@ namespace TransferAll
                                         // Remove the Group from the Junk Stash.
                                         junk.ItemsInTrash.Remove(tempGroup);
                                     }
-
-                                    // Show the user the number of groups that were moved.
-                                    uiManager.ShowPopup(BuildInfo.Name, $"Groups Moved From Junk: {tempGroups.Count}", PopupType.Normal);
                                 }
                                 // Add the temporary list to the Global Dictionaries.
                                 // This allows the user to "undo" the moves to each Junk Stash.
-                                _tempGroups.Add(junk.Pointer, tempGroups);
+                                // Check if the temporary list is already in the Global Dictionary.
+                                if (_tempGroups.ContainsKey(junk.Pointer))
+                                {
+                                    // Add the new groups to the list.
+                                    var globalGroups = _tempGroups[junk.Pointer];
+                                    globalGroups.AddRange(tempGroups);
+                                    // Replace the Global List with the updated one.
+                                    _tempGroups[junk.Pointer] = globalGroups;
+                                }
+                                else
+                                {
+                                    _tempGroups.Add(junk.Pointer, tempGroups);
+                                }
+
+                                // Show the user the number of items that were moved.
+                                uiManager.ShowPopup(BuildInfo.Name, $"Items Moved From Junk: {tempItems.Count}", PopupType.Normal);
+                                // Show the user the number of groups that were moved.
+                                uiManager.ShowPopup(BuildInfo.Name, $"Groups Moved From Junk: {tempGroups.Count}", PopupType.Normal);
                             }
                             // Something went wrong with the temporary moves,
                             // so show the user a message.
@@ -1042,7 +1095,8 @@ namespace TransferAll
                                     {
                                         junk.ItemsInTrash.Add(tempItems[i]);
                                     }
-                                }// There were no items to move, so show the user a message.
+                                }
+                                // There were no items to move, so show the user a message.
                                 else
                                 {
                                     uiManager.ShowPopup(BuildInfo.Name, "No items to move", PopupType.Normal);
@@ -1085,9 +1139,6 @@ namespace TransferAll
                                 {
                                     tempInventory.RemoveItem(tempItems[i]);
                                 }
-
-                                // Show the user the number of items that were moved.
-                                uiManager.ShowPopup(BuildInfo.Name, $"Items Moved From Junk: {tempItems.Count}", PopupType.Normal);
                             }
                             if (tempGroups.Count > 0)
                             {
@@ -1097,14 +1148,16 @@ namespace TransferAll
                                 {
                                     tempInventory.RemoveItem(tempGroups[i]);
                                 }
-
-                                // Show the user the number of groups that were moved.
-                                uiManager.ShowPopup(BuildInfo.Name, $"Groups Moved From Junk: {tempGroups.Count}", PopupType.Normal);
                             }
                             if (tempItems.Count == 0 && tempGroups.Count == 0)
                             {
                                 uiManager.ShowPopup(BuildInfo.Name, "No items to move", PopupType.Normal);
                             }
+
+                            // Show the user the number of items that were moved.
+                            uiManager.ShowPopup(BuildInfo.Name, $"Items Moved From Junk: {tempItems.Count}", PopupType.Normal);
+                            // Show the user the number of groups that were moved.
+                            uiManager.ShowPopup(BuildInfo.Name, $"Groups Moved From Junk: {tempGroups.Count}", PopupType.Normal);
 
                             // Remove the temporary list from the Global Dictionaries.
                             _tempItems.Remove(junk.Pointer);
@@ -1133,7 +1186,7 @@ namespace TransferAll
             // so show the user a Tutorial message.
             else
             {
-                ShowTutorialMessage(isWarehouse: false);
+                uiManager.ShowPopup(BuildInfo.Name, "Please open a junk pile first.", PopupType.Normal);
             }
         }
         /// <summary>
@@ -1271,18 +1324,27 @@ namespace TransferAll
                                     continue;
                                 }
                             }
-                            // Try to cast the BaseItem to an Item.
-                            if (baseItem.TryCast<Item>() != null)
+                            // Check if the condition of the part is
+                            // greater than or equal to the user setting.
+                            if ((baseItem.GetCondition() * 100) >= _configFile.MinPartCondition)
                             {
-                                // The BaseItem is an Item, so add it to the correct list.
-                                tempItems.Add(baseItem.TryCast<Item>());
+                                // Try to cast the BaseItem to an Item.
+                                if (baseItem.TryCast<Item>() != null)
+                                {
+                                    // The BaseItem is an Item, so add it to the correct list.
+                                    tempItems.Add(baseItem.TryCast<Item>());
+                                }
+                                else if (baseItem.TryCast<GroupItem>() != null)
+                                {
+                                    // The BaseItem is a GroupItem, so add it to the correct list.
+                                    tempGroups.Add(baseItem.TryCast<GroupItem>());
+                                }
+                                junkTotalCount++;
                             }
-                            else if (baseItem.TryCast<GroupItem>() != null)
+                            else
                             {
-                                // The BaseItem is a GroupItem, so add it to the correct list.
-                                tempGroups.Add(baseItem.TryCast<GroupItem>());
+                                junkCount -= 1;
                             }
-                            junkTotalCount++;
                         }
                         // Check that all the items and groups were added to the temporary lists.
                         if ((tempItems.Count + tempGroups.Count) == junkCount)
@@ -1303,7 +1365,19 @@ namespace TransferAll
                             }
                             // Add the temporary list to the Global Dictionaries.
                             // This allows the user to "undo" the moves to each Junk Stash.
-                            _tempItems.Add(junk.Pointer, tempItems);
+                            // Check if the temporary list is already in the Global Dictionary.
+                            if (_tempItems.ContainsKey(junk.Pointer))
+                            {
+                                // Add the new items to the list.
+                                var globalItems = _tempItems[junk.Pointer];
+                                globalItems.AddRange(tempItems);
+                                // Replace the Global List with the updated one.
+                                _tempItems[junk.Pointer] = globalItems;
+                            }
+                            else
+                            {
+                                _tempItems.Add(junk.Pointer, tempItems);
+                            }
 
                             // We're using a temporary list, so ForEach loops work here.
                             // We aren't editing the temporary list, just the Junk and Temp Inventory.
@@ -1321,7 +1395,19 @@ namespace TransferAll
                             }
                             // Add the temporary list to the Global Dictionaries.
                             // This allows the user to "undo" the moves to each Junk Stash.
-                            _tempGroups.Add(junk.Pointer, tempGroups);
+                            // Check if the temporary list is already in the Global Dictionary.
+                            if (_tempGroups.ContainsKey(junk.Pointer))
+                            {
+                                // Add the new groups to the list.
+                                var globalGroups = _tempGroups[junk.Pointer];
+                                globalGroups.AddRange(tempGroups);
+                                // Replace the Global List with the updated one.
+                                _tempGroups[junk.Pointer] = globalGroups;
+                            }
+                            else
+                            {
+                                _tempGroups.Add(junk.Pointer, tempGroups);
+                            }
                         }
                         else if (junkTotalCount == 1)
                         {
@@ -1340,7 +1426,19 @@ namespace TransferAll
                             }
                             // Add the temporary list to the Global Dictionaries.
                             // This allows the user to "undo" the moves to each Junk Stash.
-                            _tempItems.Add(junk.Pointer, tempItems);
+                            // Check if the temporary list is already in the Global Dictionary.
+                            if (_tempItems.ContainsKey(junk.Pointer))
+                            {
+                                // Add the new items to the list.
+                                var globalItems = _tempItems[junk.Pointer];
+                                globalItems.AddRange(tempItems);
+                                // Replace the Global List with the updated one.
+                                _tempItems[junk.Pointer] = globalItems;
+                            }
+                            else
+                            {
+                                _tempItems.Add(junk.Pointer, tempItems);
+                            }
                         }
                         // Something went wrong with the temporary moves,
                         // so show the user a message.

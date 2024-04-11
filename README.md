@@ -1,4 +1,4 @@
-# TRANSFER ALL - 1.3.1
+# TRANSFER ALL - 1.4.0
 Mod to automatically transfer all parts from your Inventory to the Warehouse.
 Also, works in the Barn and Junkyard; including automatically moving all junk to the shopping cart.
 
@@ -11,17 +11,23 @@ Also, works in the Barn and Junkyard; including automatically moving all junk to
 * The user can also press a different key (L) and move all the Junk stashes from the Barn or Junkyard to the Shopping Cart/Summary screen.
 * You still have to pay for the items at the Barn or Junkyard.
 
-## UPDATE 1.3.1
-* Fixed a bug: Holiday names were renaming the Garage and the mod no longer functioned.
-* Fixed a bug: This mod adjusts QoLmod settings (if present), but shouldn't have required it. That is now the case.
+## UPDATE 1.4.0
+* Switched Tutorial message if the Inventory/Warehouse/Junk/Shopping Cart windows aren't open to a Popup.
+* Added the ability to set the minimum part condition that will be transferred in settings.
+* Added "-" and "=" keys to change the minimum part condition above in real time. This setting will then be saved in the TransferAll.cfg file.
 
 ## DEFAULT KEYS
 * K: Move all items from Inventory/Warehouse/Junk/Cart tab to opposite tab in Inventory screens.
 * L: ONLY WORKS IN BARN AND JUNKYARD. Move all the Junk from all the stashes to the Shopping Cart/Summary screen (works in reverse now).
+* -: Press This Key to set the condition percentage lower by 10%. This value is saved to MinPartCondition value below on exit.
+* =: Press This Key to set the condition percentage higher by 10%. This value is saved to MinPartCondition value below on exit.
 
 ## DEFAULT SETTINGS (TransferAll.cfg)
 * TransferAllItemsAndGroups: K
 * TransferEntireJunkyardOrBarn: L
+* SetPartConditionLower: -
+* SetPartConditionHigher: =
+* MinPartCondition: 0
 * MinNumOfItemsWarning: 500
 * TransferByCategory: true
 * TransferPartsOnlyAtBarnOrJunkyard: false
