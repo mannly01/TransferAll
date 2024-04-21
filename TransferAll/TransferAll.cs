@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -22,7 +23,7 @@ namespace TransferAll
         public const string Description = "Mod to automatically transfer all parts from your Inventory to the Warehouse. Also, works in the Barn and Junkyard; including automatically moving all junk to the shopping cart.";
         public const string Author = "mannly82";
         public const string Company = "The Mann Design";
-        public const string Version = "1.4.0";
+        public const string Version = "1.4.1";
         public const string DownloadLink = "https://www.nexusmods.com/carmechanicsimulator2021/mods/174";
         public const string MelonGameCompany = "Red Dot Games";
         public const string MelonGameName = "Car Mechanic Simulator 2021";
@@ -182,6 +183,9 @@ namespace TransferAll
 
         public override void OnInitializeMelon()
         {
+            // Tell the user a log file was created.
+            MelonLogger.Msg("Creating Log File...");
+            LogService.Instance.Initialize();
             // Tell the user that we're loading the Settings.
             MelonLogger.Msg("Loading Settings...");
             _configFile = new ConfigFile();
@@ -219,12 +223,27 @@ namespace TransferAll
                         // From QoLmod.cfg: When you remove wheel or suspension assembly from car, popup will show parts condition
                         // This happens for every item in the group that is moved and the bulk move causes errors with the PopupManager.
                         _qolAllPartsPopup = settingsValue.Value.showPopupforAllPartsinGroup;
-                        // Show the user that the QoLmod was found and the current values of the two settings.
+                        // Log that the QoLmod was found and the current values of the two settings.
                         // This allows us to restore these settings after doing the bulk moves.
-                        MelonLogger.Msg($"QoLmod Found, showPopupforGroupAddedInventory: {_qolGroupAddedPopup}");
-                        MelonLogger.Msg($"QoLmod Found, showPopupforAllPartsinGroup: {_qolAllPartsPopup}");
+                        LogService.Instance.WriteToLog($"QoLmod Found, showPopupforGroupAddedInventory: {_qolGroupAddedPopup}");
+                        LogService.Instance.WriteToLog($"QoLmod Found, showPopupforAllPartsinGroup: {_qolAllPartsPopup}");
+                    }
+                    else
+                    {
+                        // The number of Melons has changed and loading failed.
+                        LogService.Instance.WriteToLog("Number of Melons in QoLmod has changed");
                     }
                 }
+                else
+                {
+                    // The QoLmod was found, but it can't be loaded.
+                    LogService.Instance.WriteToLog("QoLmod not loaded");
+                }
+            }
+            else
+            {
+                // Log that the QoLmod was not found.
+                LogService.Instance.WriteToLog("QoLmod not found");
             }
         }
 
@@ -238,6 +257,7 @@ namespace TransferAll
                 _currentScene.Equals("halloween"))
             {
                 _currentScene = "garage";
+                LogService.Instance.WriteToLog($"{sceneName} holiday is active");
             }
         }
         public override void OnSceneWasUnloaded(int buildIndex, string sceneName)
@@ -248,6 +268,7 @@ namespace TransferAll
             {
                 _tempItems.Clear();
                 _tempGroups.Clear();
+                LogService.Instance.WriteToLog($"Leaving {sceneName}");
             }
         }
 
@@ -256,6 +277,14 @@ namespace TransferAll
             // If this mod has an error, make sure the QoLmod settings
             // are still returned to their original values.
             ToggleQoLSettings(reset: true);
+            LogService.Instance.WriteToLog($"QoLmod Found, showPopupforGroupAddedInventory: {_qolGroupAddedPopup}");
+            LogService.Instance.WriteToLog($"QoLmod Found, showPopupforAllPartsinGroup: {_qolAllPartsPopup}");
+            // The above lines should write the log strings to the file
+            // but, just in case, verify all the log strings have been written.
+            if (LogService.Instance.LogCount > 0)
+            {
+                LogService.Instance.WriteToLog("Mod Deinitializing with pending log strings");
+            }
         }
 
         public override void OnUpdate()
@@ -272,6 +301,7 @@ namespace TransferAll
 
                 // Used to debug an error in the mod.
                 // This will cause a failure if the Warehouse window isn't open.
+                //LogService.Instance.WriteToLog("Error induced manually");
                 //var warehouseWindow = Singleton<WindowManager>.Instance.GetWindowByID<WarehouseWindow>(WindowID.Warehouse);
                 //var warehouseTab = warehouseWindow.warehouseTab;
                 //warehouseTab.Refresh();
@@ -284,6 +314,7 @@ namespace TransferAll
             {
                 _configFile.SetPartConditionLowerBy10();
                 UIManager.Get().ShowPopup(BuildInfo.Name, $"Transfer Part Condition: {_configFile.MinPartCondition}%", PopupType.Normal);
+                LogService.Instance.WriteToLog($"Transfer Part Condition: {_configFile.MinPartCondition}%");
             }
             // This key will set the MinPartCondition value higher by 10%
             // and then show the user the current value.
@@ -291,6 +322,7 @@ namespace TransferAll
             {
                 _configFile.SetPartConditionHigherBy10();
                 UIManager.Get().ShowPopup(BuildInfo.Name, $"Transfer Part Condition: {_configFile.MinPartCondition}%", PopupType.Normal);
+                LogService.Instance.WriteToLog($"Transfer Part Condition: {_configFile.MinPartCondition}%");
             }
 
             // Only work on these scenes.
@@ -301,7 +333,7 @@ namespace TransferAll
                 // Check if the user pressed the TransferAllItemsAndGroups Key in Settings.
                 if (Input.GetKeyDown(_configFile.TransferAllItemsAndGroups))
                 {
-                    // Check if the user is currently using the Seach box.
+                    // Check if the user is currently using the Search box.
                     if (!CheckIfInputIsFocused())
                     {
                         // Check that the user is in the Garage.
@@ -322,6 +354,7 @@ namespace TransferAll
                             {
                                 // The user hasn't upgraded their Garage, so show them a message.
                                 UIManager.Get().ShowPopup(BuildInfo.Name, "You must unlock the Warehouse Expansion first.", PopupType.Normal);
+                                LogService.Instance.WriteToLog("Warehouse has not been unlocked");
                             }
                         }
                         // Check that the user is in the Barn or Junkyard.
@@ -331,6 +364,10 @@ namespace TransferAll
                             // Do work on the Junk and TempInventory.
                             MoveBarnOrJunkyardItems();
                         }
+                    }
+                    else
+                    {
+                        LogService.Instance.WriteToLog("Search box has focus");
                     }
                 }
                 // Check if the user pressed the TransferEntireJunkyardOrBarn Key in Settings.
@@ -350,7 +387,12 @@ namespace TransferAll
                         {
                             // The user is not at the Barn or Junkyard, so show them a message.
                             UIManager.Get().ShowPopup(BuildInfo.Name, "This function only works at the Barn or Junkyard", PopupType.Normal);
+                            LogService.Instance.WriteToLog("TransferEntireJunkyardOrBarn key pressed outside of Barn/Junkyard");
                         }
+                    }
+                    else
+                    {
+                        LogService.Instance.WriteToLog("Search box has focus");
                     }
                 }
             }
@@ -363,6 +405,7 @@ namespace TransferAll
         private void ShowSceneName()
         {
             UIManager.Get().ShowPopup(BuildInfo.Name, $"Scene: {_currentScene}", PopupType.Normal);
+            LogService.Instance.WriteToLog($"Scene: {_currentScene}");
         }
         /// <summary>
         /// Debug method to show the current open window's name.
@@ -375,6 +418,7 @@ namespace TransferAll
                 if (windowManager.activeWindows.Count > 0)
                 {
                     UIManager.Get().ShowPopup(BuildInfo.Name, $"Window: {windowManager.GetLastOpenedWindow().name}", PopupType.Normal);
+                    LogService.Instance.WriteToLog($"Window: {windowManager.GetLastOpenedWindow().name}");
                 }
             }
         }
@@ -408,6 +452,7 @@ namespace TransferAll
             if (!string.IsNullOrWhiteSpace(categoryName))
             {
                 UIManager.Get().ShowPopup(BuildInfo.Name, $"Selected Category: {categoryName}", PopupType.Normal);
+                LogService.Instance.WriteToLog($"Selected Category: {categoryName}");
             }
         }
         /// <summary>
@@ -437,7 +482,7 @@ namespace TransferAll
                     }
                     if (mapCount > 0 || caseCount > 0)
                     {
-                        MelonLogger.Msg($"Inventory Maps: {mapCount} Cases: {caseCount}");
+                        LogService.Instance.WriteToLog($"Inventory Maps: {mapCount} Cases: {caseCount}");
                         mapCount = 0;
                         caseCount = 0;
                     }
@@ -460,7 +505,7 @@ namespace TransferAll
                     }
                     if (mapCount > 0 || caseCount > 0)
                     {
-                        MelonLogger.Msg($"Warehouse Maps: {mapCount} Cases: {caseCount}");
+                        LogService.Instance.WriteToLog($"Warehouse Maps: {mapCount} Cases: {caseCount}");
                         mapCount = 0;
                         caseCount = 0;
                     }
@@ -493,7 +538,7 @@ namespace TransferAll
                     }
                     if (mapCount > 0 || caseCount > 0)
                     {
-                        MelonLogger.Msg($"Stash Maps: {mapCount} Cases: {caseCount}");
+                        LogService.Instance.WriteToLog($"Stash Maps: {mapCount} Cases: {caseCount}");
                         mapCount = 0;
                         caseCount = 0;
                     }
@@ -521,7 +566,7 @@ namespace TransferAll
                             }
                             if (mapCount > 0 || caseCount > 0)
                             {
-                                MelonLogger.Msg($"Shopping Cart Maps: {mapCount} Cases: {caseCount}");
+                                LogService.Instance.WriteToLog($"Shopping Cart Maps: {mapCount} Cases: {caseCount}");
                             }
                         }
                     }
@@ -548,8 +593,10 @@ namespace TransferAll
                 garageAndToolsTab.PrepareItems();
                 // The Warehouse Expansion is item 8 (index 7) in the list.
                 var warehouseUpgrade = garageAndToolsTab.upgradeItems[7];
+#if DEBUG
                 // Debug to show the status.
-                //UIManager.Get().ShowPopup(BuildInfo.Name, $"Warehouse Unlocked: {warehouseUpgrade.IsUnlocked}", PopupType.Normal);
+                LogService.Instance.WriteToLog($"Warehouse Unlocked: {warehouseUpgrade.IsUnlocked}");
+#endif
                 return warehouseUpgrade.IsUnlocked;
             }
 
@@ -599,8 +646,7 @@ namespace TransferAll
                 settingsValue.Value.showPopupforAllPartsinGroup = tempAllPartsAdded;
 
 #if DEBUG
-                MelonLogger.Msg($"QoLmod Found, showPopupforGroupAddedInventory: {settingsValue.Value.showPopupforGroupAddedInventory}");
-                MelonLogger.Msg($"QoLmod Found, showPopupforAllPartsinGroup: {settingsValue.Value.showPopupforAllPartsinGroup}");
+                LogService.Instance.WriteToLog($"QoLmod Found, sPGAI: {settingsValue.Value.showPopupforGroupAddedInventory}, sPAPG: {settingsValue.Value.showPopupforAllPartsinGroup}");
 #endif
             }
         }
@@ -628,10 +674,6 @@ namespace TransferAll
             {
                 // Get a reference to the BaseItem in the list.
                 var baseItem = invItems[i];
-                if (i == 0)
-                {
-                    MelonLogger.Msg($"Part Condition: {baseItem.GetCondition()}");
-                }
                 // Check if the condition of the part is
                 // greater than or equal to the user setting.
                 if ((baseItem.GetCondition() * 100) >= _configFile.MinPartCondition)
@@ -772,6 +814,7 @@ namespace TransferAll
                                         // Show the user the number of items and groups that were moved.
                                         uiManager.ShowPopup(BuildInfo.Name, $"Items Moved From Inventory: {tempItems}", PopupType.Normal);
                                         uiManager.ShowPopup(BuildInfo.Name, $"Groups Moved From Inventory: {tempGroups}", PopupType.Normal);
+                                        LogService.Instance.WriteToLog($"{tempItems} Item(s) and {tempGroups} Group(s) moved from Inventory");
 
                                         // Refresh the Warehouse Inventory Tab.
                                         warehouseWindow.warehouseInventoryTab.Refresh();
@@ -799,6 +842,7 @@ namespace TransferAll
                                 // Show the user the number of items and groups that were moved.
                                 uiManager.ShowPopup(BuildInfo.Name, $"Items Moved From Inventory: {tempItems}", PopupType.Normal);
                                 uiManager.ShowPopup(BuildInfo.Name, $"Groups Moved From Inventory: {tempGroups}", PopupType.Normal);
+                                LogService.Instance.WriteToLog($"{tempItems} Item(s) and {tempGroups} Group(s) moved from Inventory");
 
                                 // Refresh the Warehouse Inventory Tab.
                                 warehouseWindow.warehouseInventoryTab.Refresh();
@@ -807,7 +851,8 @@ namespace TransferAll
                         // The user's Inventory was empty, so show the user a message.
                         else
                         {
-                            uiManager.ShowPopup(BuildInfo.Name, $"No items to move", PopupType.Normal);
+                            uiManager.ShowPopup(BuildInfo.Name, "No items to move", PopupType.Normal);
+                            LogService.Instance.WriteToLog("No items to move");
                         }
                     }
                     else if (warehouseWindow.currentTab == 1)
@@ -842,6 +887,7 @@ namespace TransferAll
                                         // Show the user the number of items and groups that were moved.
                                         uiManager.ShowPopup(BuildInfo.Name, $"Items Moved From Warehouse: {tempItems}", PopupType.Normal);
                                         uiManager.ShowPopup(BuildInfo.Name, $"Groups Moved From Warehouse: {tempGroups}", PopupType.Normal);
+                                        LogService.Instance.WriteToLog($"{tempItems} Item(s) and {tempGroups} Group(s) moved from Warehouse");
 
                                         // Refresh the Warehouse Tab.
                                         warehouseWindow.warehouseTab.Refresh(true);
@@ -869,6 +915,7 @@ namespace TransferAll
                                 // Show the user the number of items and groups that were moved.
                                 uiManager.ShowPopup(BuildInfo.Name, $"Items Moved From Warehouse: {tempItems}", PopupType.Normal);
                                 uiManager.ShowPopup(BuildInfo.Name, $"Groups Moved From Warehouse: {tempGroups}", PopupType.Normal);
+                                LogService.Instance.WriteToLog($"{tempItems} Item(s) and {tempGroups} Group(s) moved from Warehouse");
 
                                 // Refresh the Warehouse Tab
                                 warehouseWindow.warehouseTab.Refresh(true);
@@ -877,16 +924,22 @@ namespace TransferAll
                         // The Warehouse was empty, so show the user a message.
                         else
                         {
-                            uiManager.ShowPopup(BuildInfo.Name, $"No items to move", PopupType.Normal);
+                            uiManager.ShowPopup(BuildInfo.Name, "No items to move", PopupType.Normal);
+                            LogService.Instance.WriteToLog("No items to move");
                         }
                     }
                 }
+                else
+                {
+                    LogService.Instance.WriteToLog("Warehouse Window is null");
+                }
             }
             // The Warehouse Window is not displayed,
-            // so show the user a Tutorial message.
+            // so show the user a message.
             else
             {
                 uiManager.ShowPopup(BuildInfo.Name, "Please open the Warehouse first.", PopupType.Normal);
+                LogService.Instance.WriteToLog("Warehouse is not open");
             }
         }
 
@@ -925,9 +978,6 @@ namespace TransferAll
                         var junkItems = junk.ItemsInTrash;
                         // Store the number of junk in the Stash.
                         int junkCount = junkItems.Count;
-#if DEBUG
-                        MelonLogger.Msg($"# of Junk Parts: {junkCount}");
-#endif
                         // Create a temporary list to hold the body part items.
                         Il2CppSystem.Collections.Generic.List<BaseItem> bodyParts =
                             new Il2CppSystem.Collections.Generic.List<BaseItem>();
@@ -938,10 +988,6 @@ namespace TransferAll
                             bodyParts = UIHelper.GetBodyItems(junkItems);
                             // Subtract the number of body parts from junk parts.
                             junkCount -= bodyParts.Count;
-#if DEBUG
-                            MelonLogger.Msg($"# of Body Parts: {bodyParts.Count}");
-                            MelonLogger.Msg($"# of Junk Parts: {junkCount}");
-#endif
                         }
                         // Check if there is junk to move.
                         if (junkCount > 0)
@@ -1048,12 +1094,14 @@ namespace TransferAll
                                 uiManager.ShowPopup(BuildInfo.Name, $"Items Moved From Junk: {tempItems.Count}", PopupType.Normal);
                                 // Show the user the number of groups that were moved.
                                 uiManager.ShowPopup(BuildInfo.Name, $"Groups Moved From Junk: {tempGroups.Count}", PopupType.Normal);
+                                LogService.Instance.WriteToLog($"{tempItems.Count} Item(s) and {tempGroups.Count} Group(s) moved from Junk");
                             }
                             // Something went wrong with the temporary moves,
                             // so show the user a message.
                             else
                             {
-                                uiManager.ShowPopup(BuildInfo.Name, $"Failed to move items", PopupType.Normal);
+                                uiManager.ShowPopup(BuildInfo.Name, "Failed to move items", PopupType.Normal);
+                                LogService.Instance.WriteToLog("Failed to move items");
                             }
 
                             // Refresh the Items Exchange Tab
@@ -1062,7 +1110,8 @@ namespace TransferAll
                         // The junk was empty, so show the user a message.
                         else
                         {
-                            uiManager.ShowPopup(BuildInfo.Name, $"No items to move", PopupType.Normal);
+                            uiManager.ShowPopup(BuildInfo.Name, "No items to move", PopupType.Normal);
+                            LogService.Instance.WriteToLog("No items to move");
                         }
                     }
                     else if (itemsExchangeWindow.currentTab == 1)
@@ -1100,6 +1149,7 @@ namespace TransferAll
                                 else
                                 {
                                     uiManager.ShowPopup(BuildInfo.Name, "No items to move", PopupType.Normal);
+                                    LogService.Instance.WriteToLog("No items to move");
                                 }
                             }
                         }
@@ -1124,6 +1174,7 @@ namespace TransferAll
                                 else
                                 {
                                     uiManager.ShowPopup(BuildInfo.Name, "No groups to move", PopupType.Normal);
+                                    LogService.Instance.WriteToLog("No groups to move");
                                 }
                             }
                         }
@@ -1152,12 +1203,14 @@ namespace TransferAll
                             if (tempItems.Count == 0 && tempGroups.Count == 0)
                             {
                                 uiManager.ShowPopup(BuildInfo.Name, "No items to move", PopupType.Normal);
+                                LogService.Instance.WriteToLog("No items to move");
                             }
 
                             // Show the user the number of items that were moved.
                             uiManager.ShowPopup(BuildInfo.Name, $"Items Moved From Junk: {tempItems.Count}", PopupType.Normal);
                             // Show the user the number of groups that were moved.
                             uiManager.ShowPopup(BuildInfo.Name, $"Groups Moved From Junk: {tempGroups.Count}", PopupType.Normal);
+                            LogService.Instance.WriteToLog($"{tempItems.Count} Item(s) and {tempGroups.Count} Group(s) moved from Junk");
 
                             // Remove the temporary list from the Global Dictionaries.
                             _tempItems.Remove(junk.Pointer);
@@ -1168,6 +1221,7 @@ namespace TransferAll
                         else
                         {
                             uiManager.ShowPopup(BuildInfo.Name, "Failed to move items", PopupType.Normal);
+                            LogService.Instance.WriteToLog("Failed to move items");
                         }
 
                         // Clear the temporary lists for the next Junk Stash.
@@ -1187,6 +1241,7 @@ namespace TransferAll
             else
             {
                 uiManager.ShowPopup(BuildInfo.Name, "Please open a junk pile first.", PopupType.Normal);
+                LogService.Instance.WriteToLog("Junk window not open");
             }
         }
         /// <summary>
@@ -1241,12 +1296,14 @@ namespace TransferAll
                             {
                                 // Show the user the number of items and groups that were moved.
                                 uiManager.ShowPopup(BuildInfo.Name, $"Junk items moved: {junkCount}", PopupType.Normal);
+                                LogService.Instance.WriteToLog($"Junk items moved: {junkCount} from Shopping Cart");
                             }
                             // Something went wrong with the temporary moves,
                             // so show the user a message.
                             else
                             {
-                                uiManager.ShowPopup(BuildInfo.Name, $"Failed to move items", PopupType.Normal);
+                                uiManager.ShowPopup(BuildInfo.Name, "Failed to move items", PopupType.Normal);
+                                LogService.Instance.WriteToLog("Failed to move items from Shopping Cart");
                             }
                             // Clear out the Global Dictionaries whether the move succeeded or not.
                             _tempItems.Clear();
@@ -1455,15 +1512,18 @@ namespace TransferAll
                 if (!junkEmptied)
                 {
                     uiManager.ShowPopup(BuildInfo.Name, "Failed to empty a junk pile.", PopupType.Normal);
+                    LogService.Instance.WriteToLog("Failed to empty a junk pile");
                 }
                 // Show the user the number of items and groups that were moved.
                 if (junkTotalCount > 0)
                 {
                     uiManager.ShowPopup(BuildInfo.Name, $"Junk items moved: {junkTotalCount}.", PopupType.Normal);
+                    LogService.Instance.WriteToLog($"Junk items moved: {junkTotalCount} to Shopping Cart");
                 }
                 else
                 {
-                    uiManager.ShowPopup(BuildInfo.Name, $"No Junk items to move.", PopupType.Normal);
+                    uiManager.ShowPopup(BuildInfo.Name, "No Junk items to move.", PopupType.Normal);
+                    LogService.Instance.WriteToLog("No Junk items to move to Shopping Cart");
                 }
 
                 // Refresh the Items Exchange Tab (if it's open).
@@ -1488,6 +1548,93 @@ namespace TransferAll
                     }
                 }
             }
+        }
+    }
+
+    /// <summary>
+    /// A service to allow for debug logging.
+    /// </summary>
+    public class LogService
+    {
+        // A static reference to the service.
+        private static LogService _instance;
+        public static LogService Instance => _instance ?? (_instance = new LogService());
+
+        // The path to the log file.
+        private string _logFilePath = string.Empty;
+        // A list of strings to write to the log file.
+        private readonly List<string> _logs = new List<string>();
+        // A public reference to the log count.
+        // This will be used when the mod closes to write any pending logs.
+        public int LogCount => _logs.Count;
+
+        public void Initialize()
+        {
+            // Create a DateTime string to log.
+            string logDate = DateTime.Now.ToString("MM-dd-yyyy HH:mm:ss");
+            // Create the log file path string.
+            _logFilePath = $"{Directory.GetCurrentDirectory()}\\Mods\\TransferAll.log";
+            // Create the log file and write some initial information to it.
+            // Example:
+            // Transfer All - 1.4.1
+            // CMS 2021 - 1.0.34
+            // Log Created: 01-01-2024 00:00:01
+            File.WriteAllLines(_logFilePath, new List<string> { $"{BuildInfo.Name} - {BuildInfo.Version}", $"CMS 2021 - {GameSettings.BuildVersion}", $"Log Created: {logDate}" });
+        }
+
+        /// <summary>
+        /// Method to write a string to the log file.
+        /// </summary>
+        /// <param name="message">A string with the message to log.</param>
+        /// <param name="callerName">The method that the log is being created.</param>
+        public void WriteToLog(string message, [CallerMemberName] string callerName = "")
+        {
+            // Create the log string with DateTime, Calling Method and Message string.
+            var logString = $"{DateTime.Now:HH:mm:ss}\t{callerName}\t{message}.";
+            // Add the string to the list of messsage.
+            // This is done in case the file cannot be written to (it is not async).
+            _logs.Add(logString);
+            // Check that the log string is not empty.
+            if (!string.IsNullOrWhiteSpace(_logFilePath))
+            {
+                // Check that the log file exists.
+                if (File.Exists(_logFilePath))
+                {
+                    // Try to append the log strings to the log file
+                    // and then clear the log string list.
+                    try
+                    {
+                        File.AppendAllLines(_logFilePath, _logs);
+                        _logs.Clear();
+                    }
+                    catch (Exception)
+                    {
+                        // The strings could not be written to the file.
+                        // This is usually caused by a lock on the file
+                        // (if it is currently being written to).
+                        // Add them to the list and they will be written next time.
+                        _logs.Add($"{DateTime.Now:HH:mm:ss}\tLogService.WriteToLog: Unable to write to log.");
+                        _logs.Add(logString);
+                    }
+                }
+                else
+                {
+                    // The log file was not found.
+                    // This should not happen.
+                    _logs.Add($"{DateTime.Now:HH:mm:ss}\tLogService.WriteToLog: Log file not found.");
+                    _logs.Add(logString);
+                }
+            }
+            else
+            {
+                // The log file path was empty.
+                // This should not happen.
+                _logs.Add($"{DateTime.Now:HH:mm:ss}\tLogService.WriteToLog: Log file not initialized.");
+                _logs.Add(logString);
+            }
+#if DEBUG
+            MelonLogger.Msg(message);
+#endif
         }
     }
 }
