@@ -23,7 +23,7 @@ namespace TransferAll
         public const string Description = "Mod to automatically transfer all parts from your Inventory to the Warehouse. Also, works in the Barn and Junkyard; including automatically moving all junk to the shopping cart.";
         public const string Author = "mannly82";
         public const string Company = "The Mann Design";
-        public const string Version = "1.4.1";
+        public const string Version = "1.4.2";
         public const string DownloadLink = "https://www.nexusmods.com/carmechanicsimulator2021/mods/174";
         public const string MelonGameCompany = "Red Dot Games";
         public const string MelonGameName = "Car Mechanic Simulator 2021";
@@ -94,6 +94,9 @@ namespace TransferAll
         /// </summary>
         public ConfigFile()
         {
+#if DEBUG
+            LogService.Instance.WriteToLog($"Called", "ConfigFile.Init");
+#endif
             _settings = MelonPreferences.CreateCategory(SettingsCatName);
             _settings.SetFilePath("Mods/TransferAll.cfg");
             _transferAllBindKey = _settings.CreateEntry(nameof(TransferAllItemsAndGroups), KeyCode.K, 
@@ -118,6 +121,18 @@ namespace TransferAll
             // Remove the old configuration if it's still there.
             _settings.DeleteEntry("TransferAllItemsAndGroupsLeftControlPlus");
             _settings.DeleteEntry("TransferEntireJunkyardOrBarnLeftAltPlus");
+#if DEBUG
+            // Logging for debug purposes.
+            LogService.Instance.WriteToLog($"TransferAllItemsAndGroups: {TransferAllItemsAndGroups}", "ConfigFile.Init");
+            LogService.Instance.WriteToLog($"TransferEntireJunkyardOrBarn: {TransferEntireJunkyardOrBarn}", "ConfigFile.Init");
+            LogService.Instance.WriteToLog($"SetPartConditionLower: {SetPartConditionLower}", "ConfigFile.Init");
+            LogService.Instance.WriteToLog($"SetPartConditionHigher: {SetPartConditionHigher}", "ConfigFile.Init");
+            LogService.Instance.WriteToLog($"MinPartCondition: {MinPartCondition}", "ConfigFile.Init");
+            LogService.Instance.WriteToLog($"MinNumOfItemsWarning: {MinNumOfItemsWarning}", "ConfigFile.Init");
+            LogService.Instance.WriteToLog($"TransferByCategory: {TransferByCategory}", "ConfigFile.Init");
+            LogService.Instance.WriteToLog($"TransferPartsOnlyAtBarnOrJunkyard: {TransferPartsOnlyAtBarnOrJunkyard}", "ConfigFile.Init");
+            LogService.Instance.WriteToLog($"TransferMapsOrCasesOnlyAtBarnOrJunkyard: {TransferMapsOrCasesOnlyAtBarnOrJunkyard}", "ConfigFile.Init");
+#endif
         }
 
         /// <summary>
@@ -130,6 +145,9 @@ namespace TransferAll
             {
                 MinPartCondition = 0;
             }
+#if DEBUG
+            LogService.Instance.WriteToLog($"Called");
+#endif
         }
         /// <summary>
         /// Method to change the MinPartCondition setting higher by 10%.
@@ -141,6 +159,9 @@ namespace TransferAll
             {
                 MinPartCondition = 100;
             }
+#if DEBUG
+            LogService.Instance.WriteToLog($"Called");
+#endif
         }
     }
 
@@ -193,6 +214,9 @@ namespace TransferAll
 
         public override void OnLateInitializeMelon()
         {
+#if DEBUG
+            LogService.Instance.WriteToLog($"Called");
+#endif
             // Specifically for the QoLmod effect explained above.
             // Check that the QoLmod.dll is installed.
             if (File.Exists(_qolPath))
@@ -259,6 +283,14 @@ namespace TransferAll
                 _currentScene = "garage";
                 LogService.Instance.WriteToLog($"{sceneName} holiday is active");
             }
+#if DEBUG
+            if (_currentScene.Equals("garage") ||
+                _currentScene.Equals("barn") ||
+                _currentScene.Equals("junkyard"))
+            {
+                LogService.Instance.WriteToLog($"SceneName: {sceneName}");
+            }
+#endif
         }
         public override void OnSceneWasUnloaded(int buildIndex, string sceneName)
         {
@@ -270,10 +302,21 @@ namespace TransferAll
                 _tempGroups.Clear();
                 LogService.Instance.WriteToLog($"Leaving {sceneName}");
             }
+#if DEBUG
+            if (_currentScene.Equals("garage") ||
+                _currentScene.Equals("barn") ||
+                _currentScene.Equals("junkyard"))
+            {
+                LogService.Instance.WriteToLog($"SceneName: {sceneName}");
+            }
+#endif
         }
 
         public override void OnDeinitializeMelon()
         {
+#if DEBUG
+            LogService.Instance.WriteToLog($"Called");
+#endif
             // If this mod has an error, make sure the QoLmod settings
             // are still returned to their original values.
             ToggleQoLSettings(reset: true);
@@ -293,6 +336,7 @@ namespace TransferAll
 #if DEBUG
             if (Input.GetKeyDown(KeyCode.J))
             {
+                LogService.Instance.WriteToLog($"Debug Key (J) Pressed");
                 // These are debug/test methods.
                 //ShowSceneName();
                 //ShowWindowName();
@@ -333,6 +377,9 @@ namespace TransferAll
                 // Check if the user pressed the TransferAllItemsAndGroups Key in Settings.
                 if (Input.GetKeyDown(_configFile.TransferAllItemsAndGroups))
                 {
+#if DEBUG
+                    LogService.Instance.WriteToLog($"TransferAllItemsAndGroups ({_configFile.TransferAllItemsAndGroups}) key pressed");
+#endif
                     // Check if the user is currently using the Search box.
                     if (!CheckIfInputIsFocused())
                     {
@@ -373,6 +420,9 @@ namespace TransferAll
                 // Check if the user pressed the TransferEntireJunkyardOrBarn Key in Settings.
                 if (Input.GetKeyDown(_configFile.TransferEntireJunkyardOrBarn))
                 {
+#if DEBUG
+                    LogService.Instance.WriteToLog($"TransferEntireJunkyardOrBarn ({_configFile.TransferEntireJunkyardOrBarn}) key pressed");
+#endif
                     // Check if the user is currently using the Seach box.
                     if (!CheckIfInputIsFocused())
                     {
@@ -662,6 +712,9 @@ namespace TransferAll
             Il2CppSystem.Collections.Generic.List<BaseItem> invItems, 
             Inventory inventory, Warehouse warehouse)
         {
+#if DEBUG
+            LogService.Instance.WriteToLog($"Called");
+#endif
             // Disable QoLmod settings temporarily.
             ToggleQoLSettings();
 
@@ -718,6 +771,9 @@ namespace TransferAll
             Il2CppSystem.Collections.Generic.List<BaseItem> warehouseItems, 
             Inventory inventory, Warehouse warehouse)
         {
+#if DEBUG
+            LogService.Instance.WriteToLog($"Called");
+#endif
             // Disable QoLmod settings temporarily.
             ToggleQoLSettings();
 
@@ -768,6 +824,9 @@ namespace TransferAll
         /// </summary>
         private void MoveInventoryOrWarehouseItems()
         {
+#if DEBUG
+            LogService.Instance.WriteToLog($"Called");
+#endif
             var inventory = Singleton<Inventory>.Instance;
             var warehouse = Singleton<Warehouse>.Instance;
             var windowManager = WindowManager.Instance;
@@ -785,12 +844,18 @@ namespace TransferAll
                     if (warehouseWindow.currentTab == 0)
                     {
                         // This is the Inventory Tab
+#if DEBUG
+                        LogService.Instance.WriteToLog($"Inventory Tab displayed");
+#endif
                         // Setup a temporary List<BaseItem> to hold the items.
                         Il2CppSystem.Collections.Generic.List<BaseItem> items = new Il2CppSystem.Collections.Generic.List<BaseItem>();
                         // Check if the user has selected to move items
                         // for the current category only.
                         if (_configFile.TransferByCategory)
                         {
+#if DEBUG
+                            LogService.Instance.WriteToLog($"TransferByCategory enabled");
+#endif
                             var currentTab = warehouseWindow.warehouseInventoryTab;
                             items = inventory.GetItemsForCategory(currentTab.currentCategory);
                         }
@@ -805,11 +870,17 @@ namespace TransferAll
                             // Check if the user's Inventory has more items/groups than the user has configured in Settings.
                             if (items.Count >= _configFile.MinNumOfItemsWarning)
                             {
+#if DEBUG
+                                LogService.Instance.WriteToLog($"MinNumOfItemsWarning threshold reached");
+#endif
                                 // Ask the user to confirm the move because there are a lot of items/groups.
                                 Action<bool> confirmMove = new Action<bool>(response =>
                                 {
                                     if (response)
                                     {
+#if DEBUG
+                                        LogService.Instance.WriteToLog($"User accepted MinNumOfItemsWarning dialog");
+#endif
                                         (var tempItems, var tempGroups) = MoveInventoryItems(items, inventory, warehouse);
                                         // Show the user the number of items and groups that were moved.
                                         uiManager.ShowPopup(BuildInfo.Name, $"Items Moved From Inventory: {tempItems}", PopupType.Normal);
@@ -819,6 +890,12 @@ namespace TransferAll
                                         // Refresh the Warehouse Inventory Tab.
                                         warehouseWindow.warehouseInventoryTab.Refresh();
                                     }
+#if DEBUG
+                                    else
+                                    {
+                                        LogService.Instance.WriteToLog($"User cancelled MinNumOfItemsWarning dialog");
+                                    }
+#endif
                                 });
                                 string category = string.Empty;
                                 if (_configFile.TransferByCategory)
@@ -837,6 +914,9 @@ namespace TransferAll
                             }
                             else
                             {
+#if DEBUG
+                                LogService.Instance.WriteToLog($"Item count below MinNumOfItemsWarning threshold");
+#endif
                                 // The number of items is below the settings, so move the items/groups.
                                 (var tempItems, var tempGroups) = MoveInventoryItems(items, inventory, warehouse);
                                 // Show the user the number of items and groups that were moved.
@@ -858,12 +938,18 @@ namespace TransferAll
                     else if (warehouseWindow.currentTab == 1)
                     {
                         // This is the Warehouse Tab
+#if DEBUG
+                        LogService.Instance.WriteToLog($"Warehouse Tab displayed");
+#endif
                         // Setup a temporary List<BaseItem> to hold the items.
                         Il2CppSystem.Collections.Generic.List<BaseItem> items = new Il2CppSystem.Collections.Generic.List<BaseItem>();
                         // Check if the user has selected to move items
                         // for the current category only.
                         if (_configFile.TransferByCategory)
                         {
+#if DEBUG
+                            LogService.Instance.WriteToLog($"TransferByCategory enabled");
+#endif
                             var currentTab = warehouseWindow.warehouseTab;
                             items = warehouse.GetItemsForCategory(currentTab.currentCategory);
                         }
@@ -878,11 +964,17 @@ namespace TransferAll
                             // Check if the Warehouse has more items/groups than the user has configured in Settings.
                             if (items.Count >= _configFile.MinNumOfItemsWarning)
                             {
+#if DEBUG
+                                LogService.Instance.WriteToLog($"MinNumOfItemsWarning threshold reached");
+#endif
                                 // Ask the user to confirm the move because there are a lot of items/groups.
                                 Action<bool> confirmMove = new Action<bool>(response =>
                                 {
                                     if (response)
                                     {
+#if DEBUG
+                                        LogService.Instance.WriteToLog($"User accepted MinNumOfItemsWarning dialog");
+#endif
                                         (var tempItems, var tempGroups) = MoveWarehouseItems(items, inventory, warehouse);
                                         // Show the user the number of items and groups that were moved.
                                         uiManager.ShowPopup(BuildInfo.Name, $"Items Moved From Warehouse: {tempItems}", PopupType.Normal);
@@ -892,6 +984,12 @@ namespace TransferAll
                                         // Refresh the Warehouse Tab.
                                         warehouseWindow.warehouseTab.Refresh(true);
                                     }
+#if DEBUG
+                                    else
+                                    {
+                                        LogService.Instance.WriteToLog($"User cancelled MinNumOfItemsWarning dialog");
+                                    }
+#endif
                                 });
                                 string category = string.Empty;
                                 if (_configFile.TransferByCategory)
@@ -910,6 +1008,9 @@ namespace TransferAll
                             }
                             else
                             {
+#if DEBUG
+                                LogService.Instance.WriteToLog($"Item count below MinNumOfItemsWarning threshold");
+#endif
                                 // The number of items is below the settings, so move the items/groups.
                                 (var tempItems, var tempGroups) = MoveWarehouseItems(items, inventory, warehouse);
                                 // Show the user the number of items and groups that were moved.
@@ -953,6 +1054,9 @@ namespace TransferAll
         /// </remarks>
         private void MoveBarnOrJunkyardItems()
         {
+#if DEBUG
+            LogService.Instance.WriteToLog($"Called");
+#endif
             var gameManager = Singleton<GameManager>.Instance;
             var windowManager = WindowManager.Instance;
             var uiManager = UIManager.Get();
@@ -972,6 +1076,9 @@ namespace TransferAll
                     if (itemsExchangeWindow.currentTab == 0)
                     {
                         // This is the Junk (Found) Tab.
+#if DEBUG
+                        LogService.Instance.WriteToLog($"Junk (Found) Tab displayed");
+#endif
                         // Get a reference to the Junk object.
                         var junk = itemsExchangeWindow.junk;
                         // Get the list of junk items/groups.
@@ -983,6 +1090,9 @@ namespace TransferAll
                             new Il2CppSystem.Collections.Generic.List<BaseItem>();
                         if (_configFile.TransferPartsOnlyAtBarnOrJunkyard)
                         {
+#if DEBUG
+                            LogService.Instance.WriteToLog($"TransferPartsOnlyAtBarnOrJunkyard enabled");
+#endif
                             // If the user has turned on the setting,
                             // create a list of all the body parts in the stash.
                             bodyParts = UIHelper.GetBodyItems(junkItems);
@@ -992,7 +1102,6 @@ namespace TransferAll
                         // Check if there is junk to move.
                         if (junkCount > 0)
                         {
-
                             // Create temporay lists to hold the items and group.
                             List<Item> tempItems = new List<Item>();
                             List<GroupItem> tempGroups = new List<GroupItem>();
@@ -1117,6 +1226,9 @@ namespace TransferAll
                     else if (itemsExchangeWindow.currentTab == 1)
                     {
                         // This is the Temp Inventory (Collected) Tab
+#if DEBUG
+                        LogService.Instance.WriteToLog($"Temp Inventory (Collected) Tab displayed");
+#endif
                         // Get a reference to the Temp Inventory.
                         var tempInventory = gameManager.TempInventory;
                         // Get a reference to the Junk object.
@@ -1249,6 +1361,9 @@ namespace TransferAll
         /// </summary>
         private void MoveEntireBarnOrJunkyard()
         {
+#if DEBUG
+            LogService.Instance.WriteToLog($"Called");
+#endif
             var gameManager = Singleton<GameManager>.Instance;
             var windowManager = WindowManager.Instance;
             var uiManager = UIManager.Get();
@@ -1267,6 +1382,9 @@ namespace TransferAll
                     // Only work if the Shopping Cart Tab is selected.
                     if (itemsExchangeWindow.currentTab == 1)
                     {
+#if DEBUG
+                        LogService.Instance.WriteToLog($"Shopping Cart Tab displayed");
+#endif
                         // Switch the variable so that the move doesn't happen again below.
                         cartMove = true;
                         // This is the Temp Inventory (Collected) Tab.
@@ -1319,6 +1437,9 @@ namespace TransferAll
             // Check that the move didn't happen above.
             if (!cartMove)
             {
+#if DEBUG
+                LogService.Instance.WriteToLog($"No windows displayed");
+#endif
                 // This will happen if the user is not on the Shopping Cart tab.
                 // Get a reference to all the objects of type Junk.
                 var junks = UnityEngine.Object.FindObjectsOfType<Junk>();
@@ -1342,6 +1463,9 @@ namespace TransferAll
                     if (_configFile.TransferPartsOnlyAtBarnOrJunkyard &&
                         !_configFile.TransferMapsOrCasesOnlyAtBarnOrJunkyard)
                     {
+#if DEBUG
+                        LogService.Instance.WriteToLog($"TransferPArtsOnlyAtBarnOrJunkyard enabled");
+#endif
                         // If the user has turned on the setting,
                         // create a list of all the body parts in the stash.
                         bodyParts = UIHelper.GetBodyItems(junkItems);
@@ -1363,11 +1487,17 @@ namespace TransferAll
                             {
                                 if (baseItem.ID.ToLower().Contains("specialmap"))
                                 {
+#if DEBUG
+                                    LogService.Instance.WriteToLog($"TransferMapsOrCasesOnlyAtBarnOrJunkyard enabled");
+#endif
                                     tempItems.Add(baseItem.TryCast<Item>());
                                     junkTotalCount++;
                                 }
                                 else if (baseItem.ID.ToLower().Contains("specialcase"))
                                 {
+#if DEBUG
+                                    LogService.Instance.WriteToLog($"TransferMapsOrCasesOnlyAtBarnOrJunkyard enabled");
+#endif
                                     tempItems.Add(baseItem.TryCast<Item>());
                                     junkTotalCount++;
                                 }
@@ -1533,6 +1663,9 @@ namespace TransferAll
                     var itemsExchangeWindow = windowManager.GetWindowByID<ItemsExchangeWindow>(WindowID.ItemsExchange);
                     if (itemsExchangeWindow != null)
                     {
+#if DEBUG
+                        LogService.Instance.WriteToLog($"Junk (Found) Tab displayed");
+#endif
                         itemsExchangeWindow.foundTab.Refresh();
                     }
                 }
@@ -1544,6 +1677,9 @@ namespace TransferAll
                     var inventoryWindow = windowManager.GetWindowByID<InventoryWindow>(WindowID.Inventory);
                     if (inventoryWindow != null)
                     {
+#if DEBUG
+                        LogService.Instance.WriteToLog($"Temp Inventory (Collected) Tab displayed");
+#endif
                         inventoryWindow.Refresh();
                     }
                 }
