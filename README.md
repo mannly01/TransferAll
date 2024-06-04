@@ -1,4 +1,4 @@
-# TRANSFER ALL - 1.4.3
+# TRANSFER ALL - 1.4.4
 Mod to automatically transfer all parts from your Inventory to the Warehouse.
 Also, works in the Barn and Junkyard; including automatically moving all junk to the shopping cart.
 
@@ -11,8 +11,9 @@ Also, works in the Barn and Junkyard; including automatically moving all junk to
 * The user can also press a different key (L) and move all the Junk stashes from the Barn or Junkyard to the Shopping Cart/Summary screen.
 * ** You still have to pay for the items at the Barn or Junkyard. **
 
-## UPDATE 1.4.3
-* This is a custom debug version with hard-coded key listeners (K and L).
+## UPDATE 1.4.4
+* Fixed a bug: Cases and maps do not have part condition; so, when the part condition feature was added, it broke the cases/maps movement.
+* Changed GetKeyDown listener to GetKeyUp to try and mitigate an issue.
 
 ## DEFAULT KEYS
 * K: Move all items from Inventory/Warehouse/Junk/Cart tab to opposite tab in Inventory screens.

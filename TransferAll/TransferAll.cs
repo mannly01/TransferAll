@@ -1,4 +1,5 @@
-﻿using CMS.Helpers;
+﻿using CMS.FileSupport.INI;
+using CMS.Helpers;
 using CMS.UI;
 using CMS.UI.Logic;
 using CMS.UI.Windows;
@@ -23,7 +24,7 @@ namespace TransferAll
         public const string Description = "Mod to automatically transfer all parts from your Inventory to the Warehouse. Also, works in the Barn and Junkyard; including automatically moving all junk to the shopping cart.";
         public const string Author = "mannly82";
         public const string Company = "The Mann Design";
-        public const string Version = "1.4.3";
+        public const string Version = "1.4.4";
         public const string DownloadLink = "https://www.nexusmods.com/carmechanicsimulator2021/mods/174";
         public const string MelonGameCompany = "Red Dot Games";
         public const string MelonGameName = "Car Mechanic Simulator 2021";
@@ -334,14 +335,14 @@ namespace TransferAll
         {
             // This is a test key that should not be shipped with a release.
 #if DEBUG
-            if (Input.GetKeyDown(KeyCode.J))
+            if (Input.GetKeyUp(KeyCode.J))
             {
                 LogService.Instance.WriteToLog($"Debug Key (J) Pressed");
                 // These are debug/test methods.
                 //ShowSceneName();
                 //ShowWindowName();
                 //ShowCurrentCategory();
-                //ShowMapsAndCases();
+                ShowMapsAndCases();
 
                 // Used to debug an error in the mod.
                 // This will cause a failure if the Warehouse window isn't open.
@@ -354,7 +355,7 @@ namespace TransferAll
 
             // This key will set the MinPartCondition value lower by 10%
             // and then show the user the current value.
-            if (Input.GetKeyDown(_configFile.SetPartConditionLower))
+            if (Input.GetKeyUp(_configFile.SetPartConditionLower))
             {
                 _configFile.SetPartConditionLowerBy10();
                 UIManager.Get().ShowPopup(BuildInfo.Name, $"Transfer Part Condition: {_configFile.MinPartCondition}%", PopupType.Normal);
@@ -362,7 +363,7 @@ namespace TransferAll
             }
             // This key will set the MinPartCondition value higher by 10%
             // and then show the user the current value.
-            if (Input.GetKeyDown(_configFile.SetPartConditionHigher))
+            if (Input.GetKeyUp(_configFile.SetPartConditionHigher))
             {
                 _configFile.SetPartConditionHigherBy10();
                 UIManager.Get().ShowPopup(BuildInfo.Name, $"Transfer Part Condition: {_configFile.MinPartCondition}%", PopupType.Normal);
@@ -375,8 +376,7 @@ namespace TransferAll
                 _currentScene.Equals("junkyard"))
             {
                 // Check if the user pressed the TransferAllItemsAndGroups Key in Settings.
-                //if (Input.GetKeyDown(_configFile.TransferAllItemsAndGroups))
-                if (Input.GetKeyDown(KeyCode.K))
+                if (Input.GetKeyUp(_configFile.TransferAllItemsAndGroups))
                 {
 #if DEBUG
                     LogService.Instance.WriteToLog($"TransferAllItemsAndGroups ({_configFile.TransferAllItemsAndGroups}) key pressed");
@@ -419,8 +419,7 @@ namespace TransferAll
                     }
                 }
                 // Check if the user pressed the TransferEntireJunkyardOrBarn Key in Settings.
-                //if (Input.GetKeyDown(_configFile.TransferEntireJunkyardOrBarn))
-                if (Input.GetKeyDown(KeyCode.L))
+                if (Input.GetKeyUp(_configFile.TransferEntireJunkyardOrBarn))
                 {
 #if DEBUG
                     LogService.Instance.WriteToLog($"TransferEntireJunkyardOrBarn ({_configFile.TransferEntireJunkyardOrBarn}) key pressed");
@@ -669,6 +668,9 @@ namespace TransferAll
                 {
                     if (inputField.isFocused)
                     {
+#if DEBUG
+                        LogService.Instance.WriteToLog("Input Field Focused");
+#endif
                         return true;
                     }
                 }
@@ -729,6 +731,22 @@ namespace TransferAll
             {
                 // Get a reference to the BaseItem in the list.
                 var baseItem = invItems[i];
+                // Cases and Maps do not have part conditions,
+                // so they must be handled separately.
+                if (baseItem.ID.ToLower().Contains("specialmap") ||
+                    baseItem.ID.ToLower().Contains("specialcase"))
+                {
+#if DEBUG
+                    LogService.Instance.WriteToLog($"Case or Map found");
+#endif
+                    // The BaseItem is an Item, so add it to the current Warehouse.
+                    warehouse.Add(baseItem.TryCast<Item>());
+                    // Delete the Item from the Inventory.
+                    inventory.Delete(baseItem.TryCast<Item>());
+                    // Increment the temporary count of items.
+                    invItemCount++;
+                    continue;
+                }
                 // Check if the condition of the part is
                 // greater than or equal to the user setting.
                 if ((baseItem.GetCondition() * 100) >= _configFile.MinPartCondition)
@@ -788,6 +806,22 @@ namespace TransferAll
             {
                 // Get a reference to the BaseItem in the list.
                 var baseItem = warehouseItems[i];
+                // Cases and Maps do not have part conditions,
+                // so they must be handled separately.
+                if (baseItem.ID.ToLower().Contains("specialmap") ||
+                    baseItem.ID.ToLower().Contains("specialcase"))
+                {
+#if DEBUG
+                    LogService.Instance.WriteToLog($"Case or Map found");
+#endif
+                    // The BaseItem is an Item, so add it to the user's Inventory.
+                    inventory.Add(baseItem.TryCast<Item>());
+                    // Delete the Item from the Warehouse.
+                    warehouse.Delete(baseItem.TryCast<Item>());
+                    // Increment the temporary count of items.
+                    wareItemCount++;
+                    continue;
+                }
                 // Check if the condition of the part is
                 // greater than or equal to the user setting.
                 if ((baseItem.GetCondition() * 100) >= _configFile.MinPartCondition)
@@ -1116,6 +1150,22 @@ namespace TransferAll
                                     {
                                         continue;
                                     }
+                                }
+                                // Cases and Maps do not have part conditions,
+                                // so they must be handled separately.
+                                if (baseItem.ID.ToLower().Contains("specialmap") ||
+                                    baseItem.ID.ToLower().Contains("specialcase"))
+                                {
+#if DEBUG
+                                    LogService.Instance.WriteToLog($"Case or Map found");
+#endif
+                                    // Try to cast the BaseItem to an Item.
+                                    if (baseItem.TryCast<Item>() != null)
+                                    {
+                                        // The BaseItem is an Item, so add it to the correct list.
+                                        tempItems.Add(baseItem.TryCast<Item>());
+                                    }
+                                    continue;
                                 }
                                 // Check if the condition of the part is
                                 // greater than or equal to the user setting.
@@ -1466,7 +1516,7 @@ namespace TransferAll
                         !_configFile.TransferMapsOrCasesOnlyAtBarnOrJunkyard)
                     {
 #if DEBUG
-                        LogService.Instance.WriteToLog($"TransferPArtsOnlyAtBarnOrJunkyard enabled");
+                        LogService.Instance.WriteToLog($"TransferPartsOnlyAtBarnOrJunkyard enabled");
 #endif
                         // If the user has turned on the setting,
                         // create a list of all the body parts in the stash.
@@ -1483,25 +1533,24 @@ namespace TransferAll
                         // We are only storing items, so a ForEach loop works here.
                         foreach (var baseItem in junkItems)
                         {
-                            // If the user has turned on the setting to move maps/cases,
-                            // find the map/case and then override the rest of the move.
-                            if (_configFile.TransferMapsOrCasesOnlyAtBarnOrJunkyard)
+                            // Maps and Cases do not have part conditions,
+                            // so they must be handled separately.
+                            if (baseItem.ID.ToLower().Contains("specialmap") ||
+                                baseItem.ID.ToLower().Contains("specialcase"))
                             {
-                                if (baseItem.ID.ToLower().Contains("specialmap"))
+#if DEBUG
+                                LogService.Instance.WriteToLog($"Case or Map found");
+#endif
+                                tempItems.Add(baseItem.TryCast<Item>());
+                                junkTotalCount++;
+                                // If the user has turned on the setting to move maps/cases,
+                                // find the map/case and then override the rest of the move.
+                                if (_configFile.TransferMapsOrCasesOnlyAtBarnOrJunkyard)
                                 {
 #if DEBUG
                                     LogService.Instance.WriteToLog($"TransferMapsOrCasesOnlyAtBarnOrJunkyard enabled");
 #endif
-                                    tempItems.Add(baseItem.TryCast<Item>());
-                                    junkTotalCount++;
-                                }
-                                else if (baseItem.ID.ToLower().Contains("specialcase"))
-                                {
-#if DEBUG
-                                    LogService.Instance.WriteToLog($"TransferMapsOrCasesOnlyAtBarnOrJunkyard enabled");
-#endif
-                                    tempItems.Add(baseItem.TryCast<Item>());
-                                    junkTotalCount++;
+                                    break;
                                 }
                                 continue;
                             }
