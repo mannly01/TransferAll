@@ -1,5 +1,4 @@
-﻿using CMS.FileSupport.INI;
-using CMS.Helpers;
+﻿using CMS.Helpers;
 using CMS.UI;
 using CMS.UI.Logic;
 using CMS.UI.Windows;
@@ -24,7 +23,7 @@ namespace TransferAll
         public const string Description = "Mod to automatically transfer all parts from your Inventory to the Warehouse. Also, works in the Barn and Junkyard; including automatically moving all junk to the shopping cart.";
         public const string Author = "mannly82";
         public const string Company = "The Mann Design";
-        public const string Version = "1.4.4";
+        public const string Version = "1.4.5";
         public const string DownloadLink = "https://www.nexusmods.com/carmechanicsimulator2021/mods/174";
         public const string MelonGameCompany = "Red Dot Games";
         public const string MelonGameName = "Car Mechanic Simulator 2021";
@@ -339,10 +338,10 @@ namespace TransferAll
             {
                 LogService.Instance.WriteToLog($"Debug Key (J) Pressed");
                 // These are debug/test methods.
-                //ShowSceneName();
+                ShowSceneName();
                 //ShowWindowName();
                 //ShowCurrentCategory();
-                ShowMapsAndCases();
+                //ShowMapsAndCases();
 
                 // Used to debug an error in the mod.
                 // This will cause a failure if the Warehouse window isn't open.
@@ -370,81 +369,81 @@ namespace TransferAll
                 LogService.Instance.WriteToLog($"Transfer Part Condition: {_configFile.MinPartCondition}%");
             }
 
-            // Only work on these scenes.
-            if (_currentScene.Equals("garage") ||
-                _currentScene.Equals("barn") ||
-                _currentScene.Equals("junkyard"))
+            // Check if the user pressed the TransferAllItemsAndGroups Key in Settings.
+            if (Input.GetKeyUp(_configFile.TransferAllItemsAndGroups))
             {
-                // Check if the user pressed the TransferAllItemsAndGroups Key in Settings.
-                if (Input.GetKeyUp(_configFile.TransferAllItemsAndGroups))
-                {
 #if DEBUG
-                    LogService.Instance.WriteToLog($"TransferAllItemsAndGroups ({_configFile.TransferAllItemsAndGroups}) key pressed");
+                LogService.Instance.WriteToLog($"TransferAllItemsAndGroups ({_configFile.TransferAllItemsAndGroups}) key pressed");
 #endif
-                    // Check if the user is currently using the Search box.
-                    if (!CheckIfInputIsFocused())
-                    {
-                        // Check that the user is in the Garage.
-                        if (_currentScene.Equals("garage"))
-                        {
-                            // Check if the Warehouse is unlocked first.
-                            // If the warehouse hasn't been checked, do that first.
-                            if (_warehouseUnlocked == null)
-                            {
-                                _warehouseUnlocked = CheckIfWarehouseIsUnlocked();
-                            }
-                            if (_warehouseUnlocked == true)
-                            {
-                                // Do work on the Inventory or Warehouse.
-                                MoveInventoryOrWarehouseItems();
-                            }
-                            else
-                            {
-                                // The user hasn't upgraded their Garage, so show them a message.
-                                UIManager.Get().ShowPopup(BuildInfo.Name, "You must unlock the Warehouse Expansion first.", PopupType.Normal);
-                                LogService.Instance.WriteToLog("Warehouse has not been unlocked");
-                            }
-                        }
-                        // Check that the user is in the Barn or Junkyard.
-                        else if (_currentScene.Equals("barn") ||
-                                 _currentScene.Equals("junkyard"))
-                        {
-                            // Do work on the Junk and TempInventory.
-                            MoveBarnOrJunkyardItems();
-                        }
-                    }
-                    else
-                    {
-                        LogService.Instance.WriteToLog("Search box has focus");
-                    }
-                }
-                // Check if the user pressed the TransferEntireJunkyardOrBarn Key in Settings.
-                if (Input.GetKeyUp(_configFile.TransferEntireJunkyardOrBarn))
+                // Check if the user is currently using the Search box.
+                if (!CheckIfInputIsFocused())
                 {
-#if DEBUG
-                    LogService.Instance.WriteToLog($"TransferEntireJunkyardOrBarn ({_configFile.TransferEntireJunkyardOrBarn}) key pressed");
-#endif
-                    // Check if the user is currently using the Seach box.
-                    if (!CheckIfInputIsFocused())
+                    // Check that the user is in the Garage.
+                    if (_currentScene.Equals("garage"))
                     {
-                        // Check that the user is in the Barn or Junkyard.
-                        if (_currentScene.Equals("barn") ||
-                            _currentScene.Equals("junkyard"))
+                        // Check if the Warehouse is unlocked first.
+                        // If the warehouse hasn't been checked, do that first.
+                        if (_warehouseUnlocked == null)
                         {
-                            // Do work on the Junk and TempInventory.
-                            MoveEntireBarnOrJunkyard();
+                            _warehouseUnlocked = CheckIfWarehouseIsUnlocked();
+                        }
+                        if (_warehouseUnlocked == true)
+                        {
+                            // Do work on the Inventory or Warehouse.
+                            MoveInventoryOrWarehouseItems();
                         }
                         else
                         {
-                            // The user is not at the Barn or Junkyard, so show them a message.
-                            UIManager.Get().ShowPopup(BuildInfo.Name, "This function only works at the Barn or Junkyard", PopupType.Normal);
-                            LogService.Instance.WriteToLog("TransferEntireJunkyardOrBarn key pressed outside of Barn/Junkyard");
+                            // The user hasn't upgraded their Garage, so show them a message.
+                            UIManager.Get().ShowPopup(BuildInfo.Name, "You must unlock the Warehouse Expansion first.", PopupType.Normal);
+                            LogService.Instance.WriteToLog("Warehouse has not been unlocked");
                         }
+                    }
+                    // Check that the user is in the Barn or Junkyard.
+                    else if (_currentScene.Equals("barn") ||
+                             _currentScene.Equals("junkyard"))
+                    {
+                        // Do work on the Junk and TempInventory.
+                        MoveBarnOrJunkyardItems();
                     }
                     else
                     {
-                        LogService.Instance.WriteToLog("Search box has focus");
+                        // The user is not at the Garage, so show them a message.
+                        UIManager.Get().ShowPopup(BuildInfo.Name, "This function only works at the Garage, Barn or Junkyard", PopupType.Normal);
+                        LogService.Instance.WriteToLog("TransferEntireJunkyardOrBarn key pressed outside of Garage, Barn or Junkyard");
                     }
+                }
+                else
+                {
+                    LogService.Instance.WriteToLog("Search box has focus");
+                }
+            }
+            // Check if the user pressed the TransferEntireJunkyardOrBarn Key in Settings.
+            if (Input.GetKeyUp(_configFile.TransferEntireJunkyardOrBarn))
+            {
+#if DEBUG
+                LogService.Instance.WriteToLog($"TransferEntireJunkyardOrBarn ({_configFile.TransferEntireJunkyardOrBarn}) key pressed");
+#endif
+                // Check if the user is currently using the Seach box.
+                if (!CheckIfInputIsFocused())
+                {
+                    // Check that the user is in the Barn or Junkyard.
+                    if (_currentScene.Equals("barn") ||
+                        _currentScene.Equals("junkyard"))
+                    {
+                        // Do work on the Junk and TempInventory.
+                        MoveEntireBarnOrJunkyard();
+                    }
+                    else
+                    {
+                        // The user is not at the Barn or Junkyard, so show them a message.
+                        UIManager.Get().ShowPopup(BuildInfo.Name, "This function only works at the Barn or Junkyard", PopupType.Normal);
+                        LogService.Instance.WriteToLog("TransferEntireJunkyardOrBarn key pressed outside of Barn or Junkyard");
+                    }
+                }
+                else
+                {
+                    LogService.Instance.WriteToLog("Search box has focus");
                 }
             }
         }
