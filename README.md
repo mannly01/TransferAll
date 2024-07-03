@@ -12,7 +12,7 @@ Also, works in the Barn and Junkyard; including automatically moving all junk to
 * ** You still have to pay for the items at the Barn or Junkyard. **
 
 ## UPDATE 1.4.5
-* 
+* Removed SceneName check in OnUpdate to _hopefully_ solve the issue with transferring in the garage.
 
 ## DEFAULT KEYS
 * K: Move all items from Inventory/Warehouse/Junk/Cart tab to opposite tab in Inventory screens.
