@@ -23,7 +23,7 @@ namespace TransferAll
         public const string Description = "Mod to automatically transfer all parts from your Inventory to the Warehouse. Also, works in the Barn and Junkyard; including automatically moving all junk to the shopping cart.";
         public const string Author = "mannly82";
         public const string Company = "The Mann Design";
-        public const string Version = "1.4.5";
+        public const string Version = "1.4.6";
         public const string DownloadLink = "https://www.nexusmods.com/carmechanicsimulator2021/mods/174";
         public const string MelonGameCompany = "Red Dot Games";
         public const string MelonGameName = "Car Mechanic Simulator 2021";
@@ -273,6 +273,10 @@ namespace TransferAll
 
         public override void OnSceneWasInitialized(int buildIndex, string sceneName)
         {
+            if (buildIndex == -1)
+            {
+                return;
+            }
             // Save a reference to the current scene.
             _currentScene = sceneName.ToLower();
             // Change the scene name if a holiday is happening.
@@ -280,20 +284,24 @@ namespace TransferAll
                 _currentScene.Equals("easter") ||
                 _currentScene.Equals("halloween"))
             {
+                LogService.Instance.WriteToLog($"{sceneName} custom scene is active");
                 _currentScene = "garage";
-                LogService.Instance.WriteToLog($"{sceneName} holiday is active");
             }
 #if DEBUG
             if (_currentScene.Equals("garage") ||
                 _currentScene.Equals("barn") ||
                 _currentScene.Equals("junkyard"))
             {
-                LogService.Instance.WriteToLog($"SceneName: {sceneName}");
+                LogService.Instance.WriteToLog($"SceneName: {_currentScene}");
             }
 #endif
         }
         public override void OnSceneWasUnloaded(int buildIndex, string sceneName)
         {
+            if (buildIndex == -1)
+            {
+                return;
+            }
             // Clear the temporary dictionaries when the user leaves the scene.
             if (sceneName.ToLower() == "barn" ||
                 sceneName.ToLower() == "junkyard")

@@ -1,4 +1,4 @@
-# TRANSFER ALL - 1.4.5
+# TRANSFER ALL - 1.4.6
 Mod to automatically transfer all parts from your Inventory to the Warehouse.
 Also, works in the Barn and Junkyard; including automatically moving all junk to the shopping cart.
 
@@ -11,8 +11,8 @@ Also, works in the Barn and Junkyard; including automatically moving all junk to
 * The user can also press a different key (L) and move all the Junk stashes from the Barn or Junkyard to the Shopping Cart/Summary screen.
 * ** You still have to pay for the items at the Barn or Junkyard. **
 
-## UPDATE 1.4.5
-* Removed SceneName check in OnUpdate to _hopefully_ solve the issue with transferring in the garage.
+## UPDATE 1.4.6
+* Updated SceneName checks to account for "custom" scenes (i.e. Warehouse Garage Expansion).
 
 ## DEFAULT KEYS
 * K: Move all items from Inventory/Warehouse/Junk/Cart tab to opposite tab in Inventory screens.

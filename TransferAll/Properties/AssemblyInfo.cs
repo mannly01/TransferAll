@@ -9,7 +9,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyCompany(TransferAll.BuildInfo.Company)]
 [assembly: AssemblyProduct(TransferAll.BuildInfo.Name)]
 [assembly: AssemblyCopyright("Created by " + TransferAll.BuildInfo.Author)]
-[assembly: AssemblyTrademark("Copyright © 2023")]
+[assembly: AssemblyTrademark("Copyright © 2024")]
 [assembly: AssemblyCulture("")]
 [assembly: ComVisible(false)]
 //[assembly: Guid("")]
