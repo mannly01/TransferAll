@@ -89,6 +89,6 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>COPY "$(TargetPath)" "D:\SteamLibrary\steamapps\common\Car Mechanic Simulator 2021\Mods"</PostBuildEvent>
+    <PostBuildEvent>COPY "$(TargetPath)" "D:\Steam\steamapps\common\Car Mechanic Simulator 2021\Mods"</PostBuildEvent>
   </PropertyGroup>
 </Project>

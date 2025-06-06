@@ -23,7 +23,7 @@ namespace TransferAll
         public const string Description = "Mod to automatically transfer all parts from your Inventory to the Warehouse. Also, works in the Barn and Junkyard; including automatically moving all junk to the shopping cart.";
         public const string Author = "mannly82";
         public const string Company = "The Mann Design";
-        public const string Version = "1.4.6";
+        public const string Version = "1.4.7";
         public const string DownloadLink = "https://www.nexusmods.com/carmechanicsimulator2021/mods/174";
         public const string MelonGameCompany = "Red Dot Games";
         public const string MelonGameName = "Car Mechanic Simulator 2021";
@@ -90,6 +90,17 @@ namespace TransferAll
         private readonly MelonPreferences_Entry<bool> _transferMapsOrCasesOnlyAtBarnOrJunkyard;
 
         /// <summary>
+        /// User setting to select whether the TransferEntire key moves parts directly to the player inventory.
+        /// </summary>
+        //public bool TransferPartsDirectlyToInventoryAtBarnOrJunkyard => _transferPartsDirectlyToInventoryAtBarnOrJunkyard.Value;
+        public bool TransferPartsDirectlyToInventoryAtBarnOrJunkyard
+        {
+            get => _transferPartsDirectlyToInventoryAtBarnOrJunkyard.Value;
+            set { _transferPartsDirectlyToInventoryAtBarnOrJunkyard.Value = value; }
+        }
+        private readonly MelonPreferences_Entry<bool> _transferPartsDirectlyToInventoryAtBarnOrJunkyard;
+
+        /// <summary>
         /// Implementation of Settings properties.
         /// </summary>
         public ConfigFile()
@@ -100,7 +111,7 @@ namespace TransferAll
             _settings = MelonPreferences.CreateCategory(SettingsCatName);
             _settings.SetFilePath("Mods/TransferAll.cfg");
             _transferAllBindKey = _settings.CreateEntry(nameof(TransferAllItemsAndGroups), KeyCode.K, 
-                description: "Press This Key to transfer all current items and groups.");
+                description: "https://docs.unity3d.com/ScriptReference/KeyCode.html for KeyCodes." + Il2CppSystem.Environment.NewLine + "Press This Key to transfer all current items and groups.");
             _transferEntireBindKey = _settings.CreateEntry(nameof(TransferEntireJunkyardOrBarn), KeyCode.L,
                 description: "ONLY WORKS AT BARN AND JUNKYARD." + Il2CppSystem.Environment.NewLine + "Press This Key to transfer all items and groups from ALL junk stashes.");
             _setPartConditionLower = _settings.CreateEntry(nameof(SetPartConditionLower), KeyCode.Minus,
@@ -108,7 +119,7 @@ namespace TransferAll
             _setPartConditionHigher = _settings.CreateEntry(nameof(SetPartConditionHigher), KeyCode.Equals,
                 description: "Press This Key to set the condition percentage higher by 10%." + Il2CppSystem.Environment.NewLine + "This value is saved to MinPartCondition value below on exit.");
             _minPartCondition = _settings.CreateEntry(nameof(MinPartCondition), 0,
-                description: "This value will transfer parts with a condition equal to and above this number. SET TO 0 TO TRANSFER EVERYTHING.");
+                description: "This value will transfer parts with a condition equal to and above this number." + Il2CppSystem.Environment.NewLine + "SET TO 0 TO TRANSFER EVERYTHING.");
             _minNumOfItemsWarning = _settings.CreateEntry(nameof(MinNumOfItemsWarning), 500,
                 description: "This will display a warning if the items/groups are above this number (to prevent large moves by accident).");
             _transferByCategory = _settings.CreateEntry(nameof(TransferByCategory), true,
@@ -117,6 +128,8 @@ namespace TransferAll
                 description: "Set this to true and only non-body parts are moved to the Shopping Cart in the Barn/Junkyard.");
             _transferMapsOrCasesOnlyAtBarnOrJunkyard = _settings.CreateEntry(nameof(TransferMapsOrCasesOnlyAtBarnOrJunkyard), false,
                 description: "Set this to true and only maps or cases are moved to the Shopping Cart in the Barn/Junkyard." + Il2CppSystem.Environment.NewLine + "THIS OVERRIDES THE TransferPartsOnlyAtBarnOrJunkyard SETTING ABOVE.");
+            _transferPartsDirectlyToInventoryAtBarnOrJunkyard = _settings.CreateEntry(nameof(TransferPartsDirectlyToInventoryAtBarnOrJunkyard), false,
+                description: "Set this to true to bypass the Shopping Cart in the Barn/Junkyard and transfer all parts directly to the player inventory.");
 
             // Remove the old configuration if it's still there.
             _settings.DeleteEntry("TransferAllItemsAndGroupsLeftControlPlus");
@@ -132,6 +145,7 @@ namespace TransferAll
             LogService.Instance.WriteToLog($"TransferByCategory: {TransferByCategory}", "ConfigFile.Init");
             LogService.Instance.WriteToLog($"TransferPartsOnlyAtBarnOrJunkyard: {TransferPartsOnlyAtBarnOrJunkyard}", "ConfigFile.Init");
             LogService.Instance.WriteToLog($"TransferMapsOrCasesOnlyAtBarnOrJunkyard: {TransferMapsOrCasesOnlyAtBarnOrJunkyard}", "ConfigFile.Init");
+            LogService.Instance.WriteToLog($"TransferPartsDirectlyToInventoryAtBarnOrJunkyard: {TransferPartsDirectlyToInventoryAtBarnOrJunkyard}", "Config.Init");
 #endif
         }
 
@@ -206,7 +220,7 @@ namespace TransferAll
         {
             // Tell the user a log file was created.
             MelonLogger.Msg("Creating Log File...");
-            LogService.Instance.Initialize();
+            LogService.Instance.Initialize("TransferAll");
             // Tell the user that we're loading the Settings.
             MelonLogger.Msg("Loading Settings...");
             _configFile = new ConfigFile();
@@ -346,10 +360,15 @@ namespace TransferAll
             {
                 LogService.Instance.WriteToLog($"Debug Key (J) Pressed");
                 // These are debug/test methods.
-                ShowSceneName();
+                //ShowSceneName();
                 //ShowWindowName();
                 //ShowCurrentCategory();
                 //ShowMapsAndCases();
+
+                // Switch the new TransferPartsDirectlyToInventoryAtBarnOrJunkyard setting on the fly.
+                _configFile.TransferPartsDirectlyToInventoryAtBarnOrJunkyard = !_configFile.TransferPartsDirectlyToInventoryAtBarnOrJunkyard;
+                UIManager.Get().ShowPopup(BuildInfo.Name, $"TransferPartsDirectlyToInventoryAtBarnOrJunkyard: {_configFile.TransferPartsDirectlyToInventoryAtBarnOrJunkyard}", PopupType.Normal);
+                LogService.Instance.WriteToLog($"TransferPartsDirectlyToInventoryAtBarnOrJunkyard: {_configFile.TransferPartsDirectlyToInventoryAtBarnOrJunkyard}");
 
                 // Used to debug an error in the mod.
                 // This will cause a failure if the Warehouse window isn't open.
@@ -1093,7 +1112,7 @@ namespace TransferAll
         /// <remarks>
         /// There are never more than 30 items/groups, so we aren't checking the user setting.
         /// This might change in the future if people set it that low.
-        /// There also doesn't seem to be an groups in these stashes.
+        /// There also doesn't seem to be any groups in these stashes.
         /// </remarks>
         private void MoveBarnOrJunkyardItems()
         {
@@ -1101,6 +1120,8 @@ namespace TransferAll
             LogService.Instance.WriteToLog($"Called");
 #endif
             var gameManager = Singleton<GameManager>.Instance;
+            var profileManager = Singleton<ProfileManager>.Instance;
+            var profileData = profileManager.GetSelectedProfileData();
             var windowManager = WindowManager.Instance;
             var uiManager = UIManager.Get();
 
@@ -1198,16 +1219,29 @@ namespace TransferAll
                             // Check that all the items and groups were added to the temporary lists.
                             if ((tempItems.Count + tempGroups.Count) == junkCount)
                             {
+                                // Get a reference to the Player Inventory.
+                                var inventory = profileData.inventoryData;
                                 // Get a reference to the Temp Inventory.
                                 var tempInventory = gameManager.TempInventory;
+                               
                                 // We're using a temporary list, so ForEach loops work here.
                                 // We aren't editing the temporary list, just the Junk and Temp Inventory.
                                 if (tempItems.Count > 0)
                                 {
                                     foreach (var tempItem in tempItems)
                                     {
-                                        // Add the Item to the Temp Inventory (Collected Tab).
-                                        tempInventory.items.Add(tempItem);
+                                        // Check if the user wants to transfer items/groups directly to the player inventory,
+                                        if (_configFile.TransferPartsDirectlyToInventoryAtBarnOrJunkyard)
+                                        {
+                                            // Player Inventory
+                                            inventory.items.Add(tempItem);
+                                        }
+                                        else
+                                        {
+                                            // Barn/Junkyard Inventory
+                                            // Add the Item to the Temp Inventory (Collected Tab).
+                                            tempInventory.items.Add(tempItem);
+                                        }
                                         // Remove the Item from the Junk Stash.
                                         junk.ItemsInTrash.Remove(tempItem);
                                     }
@@ -1236,8 +1270,18 @@ namespace TransferAll
                                 {
                                     foreach (var tempGroup in tempGroups)
                                     {
-                                        // Add the Group to the Temp Inventory (Collected Tab).
-                                        tempInventory.items.Add(tempGroup);
+                                        // Check if the user wants to transfer items/groups directly to the player inventory,
+                                        if (_configFile.TransferPartsDirectlyToInventoryAtBarnOrJunkyard)
+                                        {
+                                            // Player Inventory
+                                            inventory.groups.Add(tempGroup);
+                                        }
+                                        else
+                                        {
+                                            // Barn/Junkyard Inventory
+                                            // Add the Group to the Temp Inventory (Collected Tab).
+                                            tempInventory.items.Add(tempGroup);
+                                        }
                                         // Remove the Group from the Junk Stash.
                                         junk.ItemsInTrash.Remove(tempGroup);
                                     }
@@ -1258,11 +1302,22 @@ namespace TransferAll
                                     _tempGroups.Add(junk.Pointer, tempGroups);
                                 }
 
-                                // Show the user the number of items that were moved.
-                                uiManager.ShowPopup(BuildInfo.Name, $"Items Moved From Junk: {tempItems.Count}", PopupType.Normal);
-                                // Show the user the number of groups that were moved.
-                                uiManager.ShowPopup(BuildInfo.Name, $"Groups Moved From Junk: {tempGroups.Count}", PopupType.Normal);
-                                LogService.Instance.WriteToLog($"{tempItems.Count} Item(s) and {tempGroups.Count} Group(s) moved from Junk");
+                                if (tempInventory.items.Count > 0)
+                                {
+                                    // Show the user the number of items that were moved.
+                                    uiManager.ShowPopup(BuildInfo.Name, $"Items Moved From Junk to Shopping Cart: {tempItems.Count}", PopupType.Normal);
+                                    // Show the user the number of groups that were moved.
+                                    uiManager.ShowPopup(BuildInfo.Name, $"Groups Moved From Junk to Shopping Cart: {tempGroups.Count}", PopupType.Normal);
+                                    LogService.Instance.WriteToLog($"{tempItems.Count} Item(s) and {tempGroups.Count} Group(s) moved from Junk to Shopping Cart");
+                                }
+                                else if (tempInventory.items.Count == 0)
+                                {
+                                    // Show the user the number of items that were moved.
+                                    uiManager.ShowPopup(BuildInfo.Name, $"Items Moved From Junk to Player Inventory: {tempItems.Count}", PopupType.Normal);
+                                    // Show the user the number of groups that were moved.
+                                    uiManager.ShowPopup(BuildInfo.Name, $"Groups Moved From Junk to Player Inventory: {tempGroups.Count}", PopupType.Normal);
+                                    LogService.Instance.WriteToLog($"{tempItems.Count} Item(s) and {tempGroups.Count} Group(s) moved from Junk to Player Inventory");
+                                }
                             }
                             // Something went wrong with the temporary moves,
                             // so show the user a message.
@@ -1424,6 +1479,8 @@ namespace TransferAll
             LogService.Instance.WriteToLog($"Called");
 #endif
             var gameManager = Singleton<GameManager>.Instance;
+            var profileManager = Singleton<ProfileManager>.Instance;
+            var profileData = profileManager.GetSelectedProfileData();
             var windowManager = WindowManager.Instance;
             var uiManager = UIManager.Get();
 
@@ -1431,14 +1488,14 @@ namespace TransferAll
             bool cartMove = false;
 
             // Check if the Junk Items Window (ItemsExchangeWindow) is displayed.
-            // This means the user wants to move the junk from the Shopping Cart.
+            // This means the user wants to move all the junk to the open junk pile.
             if (windowManager.activeWindows.count > 0 &&
                 windowManager.IsWindowActive(WindowID.ItemsExchange))
             {
                 var itemsExchangeWindow = windowManager.GetWindowByID<ItemsExchangeWindow>(WindowID.ItemsExchange);
                 if (itemsExchangeWindow != null)
                 {
-                    // Only work if the Shopping Cart Tab is selected.
+                    // Only work if the Shopping Cart Tab is displayed.
                     if (itemsExchangeWindow.currentTab == 1)
                     {
 #if DEBUG
@@ -1446,7 +1503,6 @@ namespace TransferAll
 #endif
                         // Switch the variable so that the move doesn't happen again below.
                         cartMove = true;
-                        // This is the Temp Inventory (Collected) Tab.
                         // Get a reference to the Temp Inventory.
                         var tempInventory = gameManager.TempInventory;
                         // Get a reference to the Junk object.
@@ -1486,9 +1542,95 @@ namespace TransferAll
                             _tempItems.Clear();
                             _tempGroups.Clear();
 
-                            // Refresh the Items Exchange Tab
+                            // Refresh the Items Exchange Tab.
                             itemsExchangeWindow.collectedTab.Refresh(true);
                         }
+                    }
+                }
+            }
+            // Check if the Temp Inventory window is displayed.
+            // This means the user wants to move the junk back to the junk piles (undo move).
+            else if (windowManager.activeWindows.count > 0 &&
+                windowManager.IsWindowActive(WindowID.Inventory))
+            {
+                var inventoryWindow = windowManager.GetWindowByID<InventoryWindow>(WindowID.Inventory);
+                if (inventoryWindow != null)
+                {
+                    // Only work if the Temp Inventory Window is displayed.
+                    if (windowManager.IsWindowActive(WindowID.Inventory))
+                    {
+#if DEBUG
+                        LogService.Instance.WriteToLog($"Temp Inventory (Collected) Tab displayed");
+#endif
+                        // Switch the variable so that the move doesn't happen again below.
+                        cartMove = true;
+
+                        // Get a reference to the Temp Inventory.
+                        var tempInventory = gameManager.TempInventory;
+                        // Get a reference to all the objects of type Junk.
+                        var junks = UnityEngine.Object.FindObjectsOfType<Junk>();
+                        // Setup a temporary count of junk to show the user at the end.
+                        int junkTotalCount = 0;
+                        // Use this bool to verify that all the Junk was moved from all the Stashes.
+                        bool junkEmptied = true;
+                        // Loop through the junk piles, get the temporary list that corresponds and then
+                        // move the items back to their respective junk piles.
+                        foreach (var junk in junks)
+                        {
+                            // Get the list of junk from the Global List.
+                            _tempItems.TryGetValue(junk.Pointer, out var globalItems);
+                            if (globalItems != null)
+                            {
+                                // Move the temp items back to this junk pile.
+                                foreach (var item in globalItems)
+                                {
+                                    junk.ItemsInTrash.Add(item);
+                                    tempInventory.items.Remove(item);
+                                    junkTotalCount++;
+                                }
+
+                                // Check that all the items were moved.
+                                if (junk.ItemsInTrash.Count == globalItems.Count)
+                                {
+                                    // Clear out the temporary item list.
+                                    globalItems.Clear();
+                                    _tempItems.Remove(junk.Pointer);
+                                }
+                                else
+                                {
+                                    LogService.Instance.WriteToLog($"{junk.Pointer} was not moved back");
+                                }
+                            }
+                            else
+                            {
+                                // The user has moved the junk around too much and
+                                // we don't know where to put it back.
+                                junkEmptied = false;
+                            }
+                        }
+
+                        // Check that the Temp Inventory is empty.
+                        if (tempInventory.items.Count == 0)
+                        {
+                            // Show the user the number of items and groups that were moved.
+                            uiManager.ShowPopup(BuildInfo.Name, $"Junk items moved: {junkTotalCount}", PopupType.Normal);
+                            LogService.Instance.WriteToLog($"Junk items moved: {junkTotalCount} from Shopping Cart");
+                        }
+                        else if (!junkEmptied)
+                        {
+                            // The temporary lists were cleared, so we couldn't
+                            // move the junk back to their original piles.
+                            uiManager.ShowPopup(BuildInfo.Name, $"Junk items can no longer be moved this way", PopupType.Normal);
+                            LogService.Instance.WriteToLog($"Temporary Junk lists have been cleared");
+                        }
+                        else
+                        {
+                            // Something went wrong, tell the user.
+                            uiManager.ShowPopup(BuildInfo.Name, "Failed to move items", PopupType.Normal);
+                        }
+
+                        // Refresh the Temp Inventory Window.
+                        inventoryWindow.Refresh();
                     }
                 }
             }
@@ -1594,6 +1736,8 @@ namespace TransferAll
                         // Check that all the items and groups were added to the temporary lists.
                         if ((tempItems.Count + tempGroups.Count) == junkCount)
                         {
+                            // Get a reference to the Player Inventory.
+                            var inventory = profileData.inventoryData;
                             // Get a reference to the Temp Inventory.
                             var tempInventory = gameManager.TempInventory;
                             // We're using a temporary list, so ForEach loops work here.
@@ -1602,8 +1746,18 @@ namespace TransferAll
                             {
                                 foreach (var tempItem in tempItems)
                                 {
-                                    // Add the Item to the Temp Inventory (Collected Tab).
-                                    tempInventory.items.Add(tempItem);
+                                    // Check if the user wants to transfer items/groups directly to the player inventory,
+                                    if (_configFile.TransferPartsDirectlyToInventoryAtBarnOrJunkyard)
+                                    {
+                                        // Player Inventory
+                                        inventory.items.Add(tempItem);
+                                    }
+                                    else
+                                    {
+                                        // Barn/Junkyard Inventory
+                                        // Add the Item to the Temp Inventory (Collected Tab).
+                                        tempInventory.items.Add(tempItem);
+                                    }
                                     // Remove the Item from the Junk Stash.
                                     junk.ItemsInTrash.Remove(tempItem);
                                 }
@@ -1632,8 +1786,18 @@ namespace TransferAll
                             {
                                 foreach (var tempGroup in tempGroups)
                                 {
-                                    // Add the Group to the Temp Inventory (Collected Tab).
-                                    tempInventory.items.Add(tempGroup);
+                                    // Check if the user wants to transfer items/groups directly to the player inventory,
+                                    if (_configFile.TransferPartsDirectlyToInventoryAtBarnOrJunkyard)
+                                    {
+                                        // Player Inventory
+                                        inventory.groups.Add(tempGroup);
+                                    }
+                                    else
+                                    {
+                                        // Barn/Junkyard Inventory
+                                        // Add the Group to the Temp Inventory (Collected Tab).
+                                        tempInventory.items.Add(tempGroup);
+                                    }
                                     // Remove the Group from the Junk Stash.
                                     junk.ItemsInTrash.Remove(tempGroup);
                                 }
@@ -1658,13 +1822,26 @@ namespace TransferAll
                         {
                             // This means a single map or case was moved.
                             // Move the item to the temp inventory.
+                            // Get a reference to the Player Inventory.
+                            var inventory = profileData.inventoryData;
+                            // Get a reference to the Temp Inventory.
                             var tempInventory = gameManager.TempInventory;
                             if (tempItems.Count > 0)
                             {
                                 foreach (var item in tempItems)
                                 {
-                                    // Add the Item to the Temp Inventory (Collected Tab).
-                                    tempInventory.items.Add(item);
+                                    // Check if the user wants to transfer items/groups directly to the player inventory,
+                                    if (_configFile.TransferPartsDirectlyToInventoryAtBarnOrJunkyard)
+                                    {
+                                        // Player Inventory
+                                        inventory.items.Add(item);
+                                    }
+                                    else
+                                    {
+                                        // Barn/Junkyard Inventory
+                                        // Add the Item to the Temp Inventory (Collected Tab).
+                                        tempInventory.items.Add(item);
+                                    }
                                     // Remove the Item from the Junk Stash.
                                     junk.ItemsInTrash.Remove(item);
                                 }
@@ -1703,15 +1880,22 @@ namespace TransferAll
                     LogService.Instance.WriteToLog("Failed to empty a junk pile");
                 }
                 // Show the user the number of items and groups that were moved.
-                if (junkTotalCount > 0)
+                if (junkTotalCount > 0 &&
+                    gameManager.TempInventory.items.Count > 0)
                 {
-                    uiManager.ShowPopup(BuildInfo.Name, $"Junk items moved: {junkTotalCount}.", PopupType.Normal);
-                    LogService.Instance.WriteToLog($"Junk items moved: {junkTotalCount} to Shopping Cart");
+                    uiManager.ShowPopup(BuildInfo.Name, $"Junk items moved to Shopping Cart: {junkTotalCount}.", PopupType.Normal);
+                    LogService.Instance.WriteToLog($"Junk items moved to Shopping Cart: {junkTotalCount} to Shopping Cart");
+                }
+                else if (junkTotalCount > 0 &&
+                    gameManager.TempInventory.items.Count == 0)
+                {
+                    uiManager.ShowPopup(BuildInfo.Name, $"Junk items moved to Player Inventory: {junkTotalCount}.", PopupType.Normal);
+                    LogService.Instance.WriteToLog($"Junk items moved to Player Inventory: {junkTotalCount}");
                 }
                 else
                 {
-                    uiManager.ShowPopup(BuildInfo.Name, "No Junk items to move.", PopupType.Normal);
-                    LogService.Instance.WriteToLog("No Junk items to move to Shopping Cart");
+                    uiManager.ShowPopup(BuildInfo.Name, "Junk piles are empty or items do not meet move criteria.", PopupType.Normal);
+                    LogService.Instance.WriteToLog("Junk piles are empty or items do not meet move criteria");
                 }
 
                 // Refresh the Items Exchange Tab (if it's open).
@@ -1762,15 +1946,15 @@ namespace TransferAll
         // This will be used when the mod closes to write any pending logs.
         public int LogCount => _logs.Count;
 
-        public void Initialize()
+        public void Initialize(string fileName)
         {
             // Create a DateTime string to log.
             string logDate = DateTime.Now.ToString("MM-dd-yyyy HH:mm:ss");
             // Create the log file path string.
-            _logFilePath = $"{Directory.GetCurrentDirectory()}\\Mods\\TransferAll.log";
+            _logFilePath = $"{Directory.GetCurrentDirectory()}\\Mods\\{fileName}.log";
             // Create the log file and write some initial information to it.
             // Example:
-            // Transfer All - 1.4.1
+            // {fileName} - 1.0.0
             // CMS 2021 - 1.0.34
             // Log Created: 01-01-2024 00:00:01
             File.WriteAllLines(_logFilePath, new List<string> { $"{BuildInfo.Name} - {BuildInfo.Version}", $"CMS 2021 - {GameSettings.BuildVersion}", $"Log Created: {logDate}" });
