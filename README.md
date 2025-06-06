@@ -1,4 +1,4 @@
-# TRANSFER ALL - 1.4.7
+# TRANSFER ALL - 1.5.0
 Mod to automatically transfer all parts from your Inventory to the Warehouse.
 Also, works in the Barn and Junkyard; including automatically moving all junk to the shopping cart or inventory.
 
@@ -8,10 +8,10 @@ Also, works in the Barn and Junkyard; including automatically moving all junk to
 ## FEATURES
 * This mod allows the user to move all items in their Inventory to the selected Warehouse with one press of a key (K).
 * When viewing a Junk stash in the Barn or Junkyard, the same key (K) will move all the Junk to the Shopping Cart/Summary screen or Inventory with option set to true.
-* The user can also press a different key (L) and move all the Junk stashes from the Barn or Junkyard to the Shopping Cart/Summary screen.
+* The user can also press a different key (L) and move all the Junk stashes from the Barn or Junkyard to the Shopping Cart/Summary screen or Inventory with option set to true.
 * ** You still have to pay for the items at the Barn or Junkyard, unless you set the new TransferPartsDirectlyToInventoryAtBarnOrJunkyard option to true. **
 
-## UPDATE 1.4.7
+## UPDATE 1.5.0
 * Added a configuration option to automatically transfer items from Barn/Junkyard to player inventory, skipping the payment option. ** THIS CANNOT BE UNDONE. **
 * ** After moving items to the Player Inventory the Barn/Junkyard piles and Shopping Cart will no longer show items.  **
 * ** When leaving the Barn/Junkyard, the game will ask if you want to leave without any items. Say yes and the items will be in your inventory when you return to the Garage. **
